@@ -1,0 +1,12 @@
+# Visual Studio / MSBuild
+.vs/
+*.user
+*.userosscache
+*.suo
+*.cache
+**/obj/
+
+# NuGet (восстанавливается через restore)
+packages/
+
+# Явно НЕ игнорируем SaveData1/bin — папка коммитится по требованию проекта

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="3.0" xmlns:edmx="http://schemas.microsoft.com/ado/2009/11/edmx">
+ <!-- EF Designer content (DO NOT EDIT MANUALLY BELOW HERE) -->
+  <edmx:Designer xmlns="http://schemas.microsoft.com/ado/2009/11/edmx">
+    <!-- Diagram content (shape and connector positions) -->
+    <edmx:Diagrams>
+      <Diagram DiagramId="db1d17f34b09407bbcdb4bb79c67db88" Name="Diagram1">
+        <EntityTypeShape EntityType="SaveDataModel.Act" Width="1.5" PointX="3" PointY="8.75" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.Country" Width="1.5" PointX="0.75" PointY="12.875" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.Description" Width="1.5" PointX="5.25" PointY="12.125" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.Error" Width="1.5" PointX="7.5" PointY="12.125" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.Inspection" Width="1.5" PointX="9.75" PointY="12.25" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.Permissions" Width="1.5" PointX="5.25" PointY="0.875" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.Place" Width="1.5" PointX="5.25" PointY="16.875" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.Product" Width="1.5" PointX="5.25" PointY="8.25" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.ProducType" Width="1.5" PointX="3" PointY="12.625" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.ResultTable" Width="1.5" PointX="7.5" PointY="16.625" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.Role" Width="1.5" PointX="3" PointY="4.875" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.SavePath" Width="1.5" PointX="0.75" PointY="0.75" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.sysdiagrams" Width="1.5" PointX="11.75" PointY="0.75" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.TechnicalMapAssembly" Width="1.5" PointX="10.5" PointY="7.75" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.TechnicalMapFull" Width="1.5" PointX="7.5" PointY="8.5" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.TechnicalMapTesting" Width="1.5" PointX="10.5" PointY="15.75" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.TechnicalMatFlight" Width="1.5" PointX="7.5" PointY="4.375" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.TestFlight" Width="1.5" PointX="9.75" PointY="2.75" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.UsersProfile" Width="1.5" PointX="5.25" PointY="4.125" IsExpanded="true" />
+        <EntityTypeShape EntityType="SaveDataModel.UserWithPermissions" Width="1.5" PointX="7.5" PointY="1.625" IsExpanded="true" />
+        <AssociationConnector Association="SaveDataModel.FK_Product_Act" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_ProducType_Country" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_Description_ProducType" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_Inspection_Description" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_TechnicalMapAssembly_Description" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_TechnicalMapTesting_Description" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_Error_Place" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_Error_Product" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_Error_TechnicalMapFull" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_Inspection_Error" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_Inspection_ResultTable" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_Inspection_UsersProfile" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_UserWithPermissions_Permissions" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_Product_ProducType" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_TechnicalMapFull_Product" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_TechnicalMatFlight_Product" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_UsersProfile_Role1" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_TechnicalMapAssembly_TechnicalMapFull" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_TechnicalMapAssembly_UsersProfile" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_TechnicalMapTesting_TechnicalMapFull" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_TechnicalMapTesting_UsersProfile" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_TechnicalMatFlight_UsersProfile" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_TestFlight_TechnicalMatFlight" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.FK_UserWithPermissions_UsersProfile" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.AssemblyFaultDescription" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.ErrorDescription" ManuallyRouted="false" />
+        <AssociationConnector Association="SaveDataModel.TestingFaultDescription" ManuallyRouted="false" />
+        <EntityTypeShape EntityType="SaveDataModel.BridgeLogSave" Width="1.5" PointX="12.5" PointY="4" />
+        <AssociationConnector Association="SaveDataModel.FK_BridgeLogSave_Act" />
+        <AssociationConnector Association="SaveDataModel.FK_BridgeLogSave_UsersProfile" />
+      </Diagram>
+    </edmx:Diagrams>
+  </edmx:Designer>
+</edmx:Edmx>

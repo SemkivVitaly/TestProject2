@@ -1,0 +1,1886 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="3.0" xmlns:edmx="http://schemas.microsoft.com/ado/2009/11/edmx">
+  <!-- EF Runtime content -->
+  <edmx:Runtime>
+    <!-- SSDL content -->
+    <edmx:StorageModels>
+    <Schema Namespace="Хранилище SaveDataModel" Provider="System.Data.SqlClient" ProviderManifestToken="2012" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
+        <EntityType Name="Act">
+          <Key>
+            <PropertyRef Name="ActID" />
+          </Key>
+          <Property Name="ActID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="ActNumber" Type="nvarchar" MaxLength="6" Nullable="false" />
+          <Property Name="IsReady" Type="bit" Nullable="false" />
+        </EntityType>
+        <EntityType Name="AssemblyFaultDescription">
+          <Key>
+            <PropertyRef Name="TMAID" />
+            <PropertyRef Name="DescriptionID" />
+          </Key>
+          <Property Name="TMAID" Type="int" Nullable="false" />
+          <Property Name="DescriptionID" Type="int" Nullable="false" />
+        </EntityType>
+        <EntityType Name="BridgeLogSave">
+          <Key>
+            <PropertyRef Name="BridgeLogSaveID" />
+          </Key>
+          <Property Name="BridgeLogSaveID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="ActID" Type="int" Nullable="false" />
+          <Property Name="UserID" Type="int" Nullable="false" />
+          <Property Name="SerialNumber" Type="nvarchar" MaxLength="120" Nullable="false" />
+          <Property Name="SavedUtc" Type="datetime2" Precision="7" Nullable="false" />
+          <Property Name="UnifiedLogText" Type="nvarchar(max)" />
+          <Property Name="StatusJson" Type="nvarchar(max)" />
+          <Property Name="MavlinkJson" Type="nvarchar(max)" />
+        </EntityType>
+        <EntityType Name="Country">
+          <Key>
+            <PropertyRef Name="CountryID" />
+          </Key>
+          <Property Name="CountryID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="CountryName" Type="nvarchar" MaxLength="50" Nullable="false" />
+        </EntityType>
+        <EntityType Name="Description">
+          <Key>
+            <PropertyRef Name="DescriptionID" />
+          </Key>
+          <Property Name="DescriptionID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="DescriptionText" Type="nvarchar(max)" Nullable="false" />
+          <Property Name="TypeID" Type="int" Nullable="false" />
+        </EntityType>
+        <EntityType Name="Error">
+          <Key>
+            <PropertyRef Name="ErrorID" />
+          </Key>
+          <Property Name="ErrorID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="TMID" Type="int" />
+          <Property Name="PlaceID" Type="int" Nullable="false" />
+          <Property Name="Date" Type="date" Nullable="false" />
+          <Property Name="ProductID" Type="int" />
+          <Property Name="inProgress" Type="bit" Nullable="false" />
+        </EntityType>
+        <EntityType Name="ErrorDescription">
+          <Key>
+            <PropertyRef Name="ErrorID" />
+            <PropertyRef Name="DescriptionID" />
+          </Key>
+          <Property Name="ErrorID" Type="int" Nullable="false" />
+          <Property Name="DescriptionID" Type="int" Nullable="false" />
+        </EntityType>
+        <EntityType Name="Inspection">
+          <Key>
+            <PropertyRef Name="InspectionID" />
+          </Key>
+          <Property Name="InspectionID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="UserID" Type="int" Nullable="false" />
+          <Property Name="ErrorID" Type="int" Nullable="false" />
+          <Property Name="DescriptionID" Type="int" Nullable="false" />
+          <Property Name="ResultID" Type="int" Nullable="false" />
+        </EntityType>
+        <EntityType Name="Permissions">
+          <Key>
+            <PropertyRef Name="PermissionsID" />
+          </Key>
+          <Property Name="PermissionsID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="PermissionsName" Type="nvarchar" MaxLength="50" Nullable="false" />
+        </EntityType>
+        <EntityType Name="Place">
+          <Key>
+            <PropertyRef Name="PlaceID" />
+          </Key>
+          <Property Name="PlaceID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="PlaceName" Type="nvarchar" MaxLength="50" Nullable="false" />
+        </EntityType>
+        <EntityType Name="Product">
+          <Key>
+            <PropertyRef Name="ProductID" />
+          </Key>
+          <Property Name="ProductID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="ProductSerial" Type="nvarchar" MaxLength="50" Nullable="false" />
+          <Property Name="ActID" Type="int" />
+          <Property Name="TypeID" Type="int" Nullable="false" />
+        </EntityType>
+        <EntityType Name="ProducType">
+          <Key>
+            <PropertyRef Name="TypeID" />
+          </Key>
+          <Property Name="TypeID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="TypeName" Type="nvarchar" MaxLength="50" Nullable="false" />
+          <Property Name="CountryID" Type="int" Nullable="false" />
+        </EntityType>
+        <EntityType Name="ResultTable">
+          <Key>
+            <PropertyRef Name="ResultID" />
+          </Key>
+          <Property Name="ResultID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="ResultText" Type="nvarchar" MaxLength="100" Nullable="false" />
+        </EntityType>
+        <EntityType Name="Role">
+          <Key>
+            <PropertyRef Name="RoleID" />
+          </Key>
+          <Property Name="RoleID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="RoleName" Type="nvarchar" MaxLength="25" />
+        </EntityType>
+        <EntityType Name="SavePath">
+          <Key>
+            <PropertyRef Name="PathID" />
+          </Key>
+          <Property Name="SavePath" Type="nvarchar(max)" Nullable="false" />
+          <Property Name="PathID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="ActNumber" Type="nvarchar(max)" />
+        </EntityType>
+        <EntityType Name="sysdiagrams">
+          <Key>
+            <PropertyRef Name="diagram_id" />
+          </Key>
+          <Property Name="name" Type="nvarchar" MaxLength="128" Nullable="false" />
+          <Property Name="principal_id" Type="int" Nullable="false" />
+          <Property Name="diagram_id" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="version" Type="int" />
+          <Property Name="definition" Type="varbinary(max)" />
+        </EntityType>
+        <EntityType Name="TechnicalMapAssembly">
+          <Key>
+            <PropertyRef Name="TMAID" />
+          </Key>
+          <Property Name="TMAID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="UserID" Type="int" Nullable="false" />
+          <Property Name="Date" Type="date" Nullable="false" />
+          <Property Name="TimeStart" Type="time" Precision="7" Nullable="false" />
+          <Property Name="TimeEnd" Type="time" Precision="7" Nullable="false" />
+          <Property Name="InProgress" Type="bit" Nullable="false" />
+          <Property Name="IsReady" Type="bit" Nullable="false" />
+          <Property Name="Fault" Type="bit" Nullable="false" />
+          <Property Name="DescriptionID" Type="int" />
+          <Property Name="TMID" Type="int" Nullable="false" />
+        </EntityType>
+        <EntityType Name="TechnicalMapFull">
+          <Key>
+            <PropertyRef Name="TMID" />
+          </Key>
+          <Property Name="TMID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="ProductID" Type="int" Nullable="false" />
+          <Property Name="Inspection" Type="bit" Nullable="false" />
+        </EntityType>
+        <EntityType Name="TechnicalMapTesting">
+          <Key>
+            <PropertyRef Name="TMTID" />
+          </Key>
+          <Property Name="TMTID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="UserID" Type="int" Nullable="false" />
+          <Property Name="Date" Type="date" Nullable="false" />
+          <Property Name="TimeStart" Type="time" Precision="7" Nullable="false" />
+          <Property Name="TimeEnd" Type="time" Precision="7" Nullable="false" />
+          <Property Name="InProgress" Type="bit" Nullable="false" />
+          <Property Name="IsReadt" Type="bit" Nullable="false" />
+          <Property Name="Fault" Type="bit" Nullable="false" />
+          <Property Name="DescriptionID" Type="int" />
+          <Property Name="TMID" Type="int" Nullable="false" />
+        </EntityType>
+        <EntityType Name="TechnicalMatFlight">
+          <Key>
+            <PropertyRef Name="TFlightID" />
+          </Key>
+          <Property Name="TFlightID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="Date" Type="date" Nullable="false" />
+          <Property Name="ProductID" Type="int" Nullable="false" />
+          <Property Name="UserID" Type="int" Nullable="false" />
+          <Property Name="Test_Pass" Type="bit" Nullable="false" />
+        </EntityType>
+        <EntityType Name="TestFlight">
+          <Key>
+            <PropertyRef Name="TestID" />
+          </Key>
+          <Property Name="TestID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="Visual" Type="bit" Nullable="false" />
+          <Property Name="Damage" Type="bit" Nullable="false" />
+          <Property Name="FC1" Type="bit" Nullable="false" />
+          <Property Name="FC2" Type="bit" Nullable="false" />
+          <Property Name="+5V_FC1" Type="bit" Nullable="false" />
+          <Property Name="+5V_FC2" Type="bit" Nullable="false" />
+          <Property Name="FC_Test_Pass" Type="bit" Nullable="false" />
+          <Property Name="Externa_Test_Pass" Type="bit" Nullable="false" />
+          <Property Name="Long_Test_Pass" Type="bit" Nullable="false" />
+          <Property Name="Result" Type="nvarchar" MaxLength="50" />
+          <Property Name="Description" Type="nvarchar(max)" />
+          <Property Name="TFlightID" Type="int" Nullable="false" />
+          <Property Name="Stand" Type="int" Nullable="false" />
+        </EntityType>
+        <EntityType Name="TestingFaultDescription">
+          <Key>
+            <PropertyRef Name="TMTID" />
+            <PropertyRef Name="DescriptionID" />
+          </Key>
+          <Property Name="TMTID" Type="int" Nullable="false" />
+          <Property Name="DescriptionID" Type="int" Nullable="false" />
+        </EntityType>
+        <EntityType Name="UsersProfile">
+          <Key>
+            <PropertyRef Name="UserID" />
+          </Key>
+          <Property Name="UserID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="UserName" Type="nvarchar" MaxLength="50" Nullable="false" />
+          <Property Name="UserLogin" Type="nvarchar" MaxLength="50" Nullable="false" />
+          <Property Name="UserPassword" Type="nvarchar(max)" Nullable="false" />
+          <Property Name="RoleID" Type="int" Nullable="false" />
+        </EntityType>
+        <EntityType Name="UserWithPermissions">
+          <Key>
+            <PropertyRef Name="PermAddID" />
+          </Key>
+          <Property Name="PermAddID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="UserID" Type="int" Nullable="false" />
+          <Property Name="PermissionsID" Type="int" Nullable="false" />
+        </EntityType>
+        <Association Name="FK_AssemblyFaultDescription_Description">
+          <End Role="Description" Type="Self.Description" Multiplicity="1" />
+          <End Role="AssemblyFaultDescription" Type="Self.AssemblyFaultDescription" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Description">
+              <PropertyRef Name="DescriptionID" />
+            </Principal>
+            <Dependent Role="AssemblyFaultDescription">
+              <PropertyRef Name="DescriptionID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_AssemblyFaultDescription_TMA">
+          <End Role="TechnicalMapAssembly" Type="Self.TechnicalMapAssembly" Multiplicity="1">
+            <OnDelete Action="Cascade" />
+          </End>
+          <End Role="AssemblyFaultDescription" Type="Self.AssemblyFaultDescription" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapAssembly">
+              <PropertyRef Name="TMAID" />
+            </Principal>
+            <Dependent Role="AssemblyFaultDescription">
+              <PropertyRef Name="TMAID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_BridgeLogSave_Act">
+          <End Role="Act" Type="Self.Act" Multiplicity="1" />
+          <End Role="BridgeLogSave" Type="Self.BridgeLogSave" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Act">
+              <PropertyRef Name="ActID" />
+            </Principal>
+            <Dependent Role="BridgeLogSave">
+              <PropertyRef Name="ActID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_BridgeLogSave_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="BridgeLogSave" Type="Self.BridgeLogSave" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="BridgeLogSave">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Description_ProducType">
+          <End Role="ProducType" Type="Self.ProducType" Multiplicity="1" />
+          <End Role="Description" Type="Self.Description" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="ProducType">
+              <PropertyRef Name="TypeID" />
+            </Principal>
+            <Dependent Role="Description">
+              <PropertyRef Name="TypeID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Error_Place">
+          <End Role="Place" Type="Self.Place" Multiplicity="1" />
+          <End Role="Error" Type="Self.Error" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Place">
+              <PropertyRef Name="PlaceID" />
+            </Principal>
+            <Dependent Role="Error">
+              <PropertyRef Name="PlaceID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Error_Product">
+          <End Role="Product" Type="Self.Product" Multiplicity="0..1" />
+          <End Role="Error" Type="Self.Error" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Product">
+              <PropertyRef Name="ProductID" />
+            </Principal>
+            <Dependent Role="Error">
+              <PropertyRef Name="ProductID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Error_TechnicalMapFull">
+          <End Role="TechnicalMapFull" Type="Self.TechnicalMapFull" Multiplicity="0..1" />
+          <End Role="Error" Type="Self.Error" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapFull">
+              <PropertyRef Name="TMID" />
+            </Principal>
+            <Dependent Role="Error">
+              <PropertyRef Name="TMID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ErrorDescription_Description">
+          <End Role="Description" Type="Self.Description" Multiplicity="1" />
+          <End Role="ErrorDescription" Type="Self.ErrorDescription" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Description">
+              <PropertyRef Name="DescriptionID" />
+            </Principal>
+            <Dependent Role="ErrorDescription">
+              <PropertyRef Name="DescriptionID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ErrorDescription_Error">
+          <End Role="Error" Type="Self.Error" Multiplicity="1">
+            <OnDelete Action="Cascade" />
+          </End>
+          <End Role="ErrorDescription" Type="Self.ErrorDescription" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Error">
+              <PropertyRef Name="ErrorID" />
+            </Principal>
+            <Dependent Role="ErrorDescription">
+              <PropertyRef Name="ErrorID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Inspection_Description">
+          <End Role="Description" Type="Self.Description" Multiplicity="1" />
+          <End Role="Inspection" Type="Self.Inspection" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Description">
+              <PropertyRef Name="DescriptionID" />
+            </Principal>
+            <Dependent Role="Inspection">
+              <PropertyRef Name="DescriptionID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Inspection_Error">
+          <End Role="Error" Type="Self.Error" Multiplicity="1" />
+          <End Role="Inspection" Type="Self.Inspection" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Error">
+              <PropertyRef Name="ErrorID" />
+            </Principal>
+            <Dependent Role="Inspection">
+              <PropertyRef Name="ErrorID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Inspection_ResultTable">
+          <End Role="ResultTable" Type="Self.ResultTable" Multiplicity="1" />
+          <End Role="Inspection" Type="Self.Inspection" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="ResultTable">
+              <PropertyRef Name="ResultID" />
+            </Principal>
+            <Dependent Role="Inspection">
+              <PropertyRef Name="ResultID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Inspection_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="Inspection" Type="Self.Inspection" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="Inspection">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Product_Act">
+          <End Role="Act" Type="Self.Act" Multiplicity="0..1" />
+          <End Role="Product" Type="Self.Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Act">
+              <PropertyRef Name="ActID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="ActID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Product_ProducType">
+          <End Role="ProducType" Type="Self.ProducType" Multiplicity="1" />
+          <End Role="Product" Type="Self.Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="ProducType">
+              <PropertyRef Name="TypeID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="TypeID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ProducType_Country">
+          <End Role="Country" Type="Self.Country" Multiplicity="1" />
+          <End Role="ProducType" Type="Self.ProducType" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Country">
+              <PropertyRef Name="CountryID" />
+            </Principal>
+            <Dependent Role="ProducType">
+              <PropertyRef Name="CountryID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapAssembly_Description">
+          <End Role="Description" Type="Self.Description" Multiplicity="0..1" />
+          <End Role="TechnicalMapAssembly" Type="Self.TechnicalMapAssembly" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Description">
+              <PropertyRef Name="DescriptionID" />
+            </Principal>
+            <Dependent Role="TechnicalMapAssembly">
+              <PropertyRef Name="DescriptionID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapAssembly_TechnicalMapFull">
+          <End Role="TechnicalMapFull" Type="Self.TechnicalMapFull" Multiplicity="1" />
+          <End Role="TechnicalMapAssembly" Type="Self.TechnicalMapAssembly" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapFull">
+              <PropertyRef Name="TMID" />
+            </Principal>
+            <Dependent Role="TechnicalMapAssembly">
+              <PropertyRef Name="TMID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapAssembly_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="TechnicalMapAssembly" Type="Self.TechnicalMapAssembly" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="TechnicalMapAssembly">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapFull_Product">
+          <End Role="Product" Type="Self.Product" Multiplicity="1" />
+          <End Role="TechnicalMapFull" Type="Self.TechnicalMapFull" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Product">
+              <PropertyRef Name="ProductID" />
+            </Principal>
+            <Dependent Role="TechnicalMapFull">
+              <PropertyRef Name="ProductID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapTesting_Description">
+          <End Role="Description" Type="Self.Description" Multiplicity="0..1" />
+          <End Role="TechnicalMapTesting" Type="Self.TechnicalMapTesting" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Description">
+              <PropertyRef Name="DescriptionID" />
+            </Principal>
+            <Dependent Role="TechnicalMapTesting">
+              <PropertyRef Name="DescriptionID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapTesting_TechnicalMapFull">
+          <End Role="TechnicalMapFull" Type="Self.TechnicalMapFull" Multiplicity="1" />
+          <End Role="TechnicalMapTesting" Type="Self.TechnicalMapTesting" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapFull">
+              <PropertyRef Name="TMID" />
+            </Principal>
+            <Dependent Role="TechnicalMapTesting">
+              <PropertyRef Name="TMID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapTesting_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="TechnicalMapTesting" Type="Self.TechnicalMapTesting" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="TechnicalMapTesting">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMatFlight_Product">
+          <End Role="Product" Type="Self.Product" Multiplicity="1" />
+          <End Role="TechnicalMatFlight" Type="Self.TechnicalMatFlight" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Product">
+              <PropertyRef Name="ProductID" />
+            </Principal>
+            <Dependent Role="TechnicalMatFlight">
+              <PropertyRef Name="ProductID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMatFlight_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="TechnicalMatFlight" Type="Self.TechnicalMatFlight" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="TechnicalMatFlight">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TestFlight_TechnicalMatFlight">
+          <End Role="TechnicalMatFlight" Type="Self.TechnicalMatFlight" Multiplicity="1" />
+          <End Role="TestFlight" Type="Self.TestFlight" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMatFlight">
+              <PropertyRef Name="TFlightID" />
+            </Principal>
+            <Dependent Role="TestFlight">
+              <PropertyRef Name="TFlightID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TestingFaultDescription_Description">
+          <End Role="Description" Type="Self.Description" Multiplicity="1" />
+          <End Role="TestingFaultDescription" Type="Self.TestingFaultDescription" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Description">
+              <PropertyRef Name="DescriptionID" />
+            </Principal>
+            <Dependent Role="TestingFaultDescription">
+              <PropertyRef Name="DescriptionID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TestingFaultDescription_TMT">
+          <End Role="TechnicalMapTesting" Type="Self.TechnicalMapTesting" Multiplicity="1">
+            <OnDelete Action="Cascade" />
+          </End>
+          <End Role="TestingFaultDescription" Type="Self.TestingFaultDescription" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapTesting">
+              <PropertyRef Name="TMTID" />
+            </Principal>
+            <Dependent Role="TestingFaultDescription">
+              <PropertyRef Name="TMTID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_UsersProfile_Role1">
+          <End Role="Role" Type="Self.Role" Multiplicity="1" />
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Role">
+              <PropertyRef Name="RoleID" />
+            </Principal>
+            <Dependent Role="UsersProfile">
+              <PropertyRef Name="RoleID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_UserWithPermissions_Permissions">
+          <End Role="Permissions" Type="Self.Permissions" Multiplicity="1" />
+          <End Role="UserWithPermissions" Type="Self.UserWithPermissions" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Permissions">
+              <PropertyRef Name="PermissionsID" />
+            </Principal>
+            <Dependent Role="UserWithPermissions">
+              <PropertyRef Name="PermissionsID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_UserWithPermissions_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="UserWithPermissions" Type="Self.UserWithPermissions" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="UserWithPermissions">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Function Name="fn_diagramobjects" Aggregate="false" BuiltIn="false" NiladicFunction="false" IsComposable="true" ParameterTypeSemantics="AllowImplicitConversion" Schema="dbo" ReturnType="int" />
+        <Function Name="sp_alterdiagram" Aggregate="false" BuiltIn="false" NiladicFunction="false" IsComposable="false" ParameterTypeSemantics="AllowImplicitConversion" Schema="dbo">
+          <Parameter Name="diagramname" Type="nvarchar" Mode="In" />
+          <Parameter Name="owner_id" Type="int" Mode="In" />
+          <Parameter Name="version" Type="int" Mode="In" />
+          <Parameter Name="definition" Type="varbinary(max)" Mode="In" />
+        </Function>
+        <Function Name="sp_creatediagram" Aggregate="false" BuiltIn="false" NiladicFunction="false" IsComposable="false" ParameterTypeSemantics="AllowImplicitConversion" Schema="dbo">
+          <Parameter Name="diagramname" Type="nvarchar" Mode="In" />
+          <Parameter Name="owner_id" Type="int" Mode="In" />
+          <Parameter Name="version" Type="int" Mode="In" />
+          <Parameter Name="definition" Type="varbinary(max)" Mode="In" />
+        </Function>
+        <Function Name="sp_dropdiagram" Aggregate="false" BuiltIn="false" NiladicFunction="false" IsComposable="false" ParameterTypeSemantics="AllowImplicitConversion" Schema="dbo">
+          <Parameter Name="diagramname" Type="nvarchar" Mode="In" />
+          <Parameter Name="owner_id" Type="int" Mode="In" />
+        </Function>
+        <Function Name="sp_helpdiagramdefinition" Aggregate="false" BuiltIn="false" NiladicFunction="false" IsComposable="false" ParameterTypeSemantics="AllowImplicitConversion" Schema="dbo">
+          <Parameter Name="diagramname" Type="nvarchar" Mode="In" />
+          <Parameter Name="owner_id" Type="int" Mode="In" />
+        </Function>
+        <Function Name="sp_helpdiagrams" Aggregate="false" BuiltIn="false" NiladicFunction="false" IsComposable="false" ParameterTypeSemantics="AllowImplicitConversion" Schema="dbo">
+          <Parameter Name="diagramname" Type="nvarchar" Mode="In" />
+          <Parameter Name="owner_id" Type="int" Mode="In" />
+        </Function>
+        <Function Name="sp_renamediagram" Aggregate="false" BuiltIn="false" NiladicFunction="false" IsComposable="false" ParameterTypeSemantics="AllowImplicitConversion" Schema="dbo">
+          <Parameter Name="diagramname" Type="nvarchar" Mode="In" />
+          <Parameter Name="owner_id" Type="int" Mode="In" />
+          <Parameter Name="new_diagramname" Type="nvarchar" Mode="In" />
+        </Function>
+        <Function Name="sp_upgraddiagrams" Aggregate="false" BuiltIn="false" NiladicFunction="false" IsComposable="false" ParameterTypeSemantics="AllowImplicitConversion" Schema="dbo" />
+        <EntityContainer Name="Хранилище SaveDataModelContainer">
+          <EntitySet Name="Act" EntityType="Self.Act" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="AssemblyFaultDescription" EntityType="Self.AssemblyFaultDescription" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="BridgeLogSave" EntityType="Self.BridgeLogSave" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="Country" EntityType="Self.Country" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="Description" EntityType="Self.Description" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="Error" EntityType="Self.Error" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="ErrorDescription" EntityType="Self.ErrorDescription" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="Inspection" EntityType="Self.Inspection" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="Permissions" EntityType="Self.Permissions" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="Place" EntityType="Self.Place" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="Product" EntityType="Self.Product" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="ProducType" EntityType="Self.ProducType" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="ResultTable" EntityType="Self.ResultTable" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="Role" EntityType="Self.Role" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="SavePath" EntityType="Self.SavePath" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="sysdiagrams" EntityType="Self.sysdiagrams" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="TechnicalMapAssembly" EntityType="Self.TechnicalMapAssembly" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="TechnicalMapFull" EntityType="Self.TechnicalMapFull" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="TechnicalMapTesting" EntityType="Self.TechnicalMapTesting" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="TechnicalMatFlight" EntityType="Self.TechnicalMatFlight" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="TestFlight" EntityType="Self.TestFlight" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="TestingFaultDescription" EntityType="Self.TestingFaultDescription" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="UsersProfile" EntityType="Self.UsersProfile" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="UserWithPermissions" EntityType="Self.UserWithPermissions" Schema="dbo" store:Type="Tables" />
+          <AssociationSet Name="FK_AssemblyFaultDescription_Description" Association="Self.FK_AssemblyFaultDescription_Description">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="AssemblyFaultDescription" EntitySet="AssemblyFaultDescription" />
+          </AssociationSet>
+          <AssociationSet Name="FK_AssemblyFaultDescription_TMA" Association="Self.FK_AssemblyFaultDescription_TMA">
+            <End Role="TechnicalMapAssembly" EntitySet="TechnicalMapAssembly" />
+            <End Role="AssemblyFaultDescription" EntitySet="AssemblyFaultDescription" />
+          </AssociationSet>
+          <AssociationSet Name="FK_BridgeLogSave_Act" Association="Self.FK_BridgeLogSave_Act">
+            <End Role="Act" EntitySet="Act" />
+            <End Role="BridgeLogSave" EntitySet="BridgeLogSave" />
+          </AssociationSet>
+          <AssociationSet Name="FK_BridgeLogSave_UsersProfile" Association="Self.FK_BridgeLogSave_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="BridgeLogSave" EntitySet="BridgeLogSave" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Description_ProducType" Association="Self.FK_Description_ProducType">
+            <End Role="ProducType" EntitySet="ProducType" />
+            <End Role="Description" EntitySet="Description" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Error_Place" Association="Self.FK_Error_Place">
+            <End Role="Place" EntitySet="Place" />
+            <End Role="Error" EntitySet="Error" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Error_Product" Association="Self.FK_Error_Product">
+            <End Role="Product" EntitySet="Product" />
+            <End Role="Error" EntitySet="Error" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Error_TechnicalMapFull" Association="Self.FK_Error_TechnicalMapFull">
+            <End Role="TechnicalMapFull" EntitySet="TechnicalMapFull" />
+            <End Role="Error" EntitySet="Error" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ErrorDescription_Description" Association="Self.FK_ErrorDescription_Description">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="ErrorDescription" EntitySet="ErrorDescription" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ErrorDescription_Error" Association="Self.FK_ErrorDescription_Error">
+            <End Role="Error" EntitySet="Error" />
+            <End Role="ErrorDescription" EntitySet="ErrorDescription" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Inspection_Description" Association="Self.FK_Inspection_Description">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="Inspection" EntitySet="Inspection" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Inspection_Error" Association="Self.FK_Inspection_Error">
+            <End Role="Error" EntitySet="Error" />
+            <End Role="Inspection" EntitySet="Inspection" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Inspection_ResultTable" Association="Self.FK_Inspection_ResultTable">
+            <End Role="ResultTable" EntitySet="ResultTable" />
+            <End Role="Inspection" EntitySet="Inspection" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Inspection_UsersProfile" Association="Self.FK_Inspection_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="Inspection" EntitySet="Inspection" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Product_Act" Association="Self.FK_Product_Act">
+            <End Role="Act" EntitySet="Act" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Product_ProducType" Association="Self.FK_Product_ProducType">
+            <End Role="ProducType" EntitySet="ProducType" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ProducType_Country" Association="Self.FK_ProducType_Country">
+            <End Role="Country" EntitySet="Country" />
+            <End Role="ProducType" EntitySet="ProducType" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapAssembly_Description" Association="Self.FK_TechnicalMapAssembly_Description">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="TechnicalMapAssembly" EntitySet="TechnicalMapAssembly" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapAssembly_TechnicalMapFull" Association="Self.FK_TechnicalMapAssembly_TechnicalMapFull">
+            <End Role="TechnicalMapFull" EntitySet="TechnicalMapFull" />
+            <End Role="TechnicalMapAssembly" EntitySet="TechnicalMapAssembly" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapAssembly_UsersProfile" Association="Self.FK_TechnicalMapAssembly_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="TechnicalMapAssembly" EntitySet="TechnicalMapAssembly" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapFull_Product" Association="Self.FK_TechnicalMapFull_Product">
+            <End Role="Product" EntitySet="Product" />
+            <End Role="TechnicalMapFull" EntitySet="TechnicalMapFull" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapTesting_Description" Association="Self.FK_TechnicalMapTesting_Description">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="TechnicalMapTesting" EntitySet="TechnicalMapTesting" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapTesting_TechnicalMapFull" Association="Self.FK_TechnicalMapTesting_TechnicalMapFull">
+            <End Role="TechnicalMapFull" EntitySet="TechnicalMapFull" />
+            <End Role="TechnicalMapTesting" EntitySet="TechnicalMapTesting" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapTesting_UsersProfile" Association="Self.FK_TechnicalMapTesting_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="TechnicalMapTesting" EntitySet="TechnicalMapTesting" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMatFlight_Product" Association="Self.FK_TechnicalMatFlight_Product">
+            <End Role="Product" EntitySet="Product" />
+            <End Role="TechnicalMatFlight" EntitySet="TechnicalMatFlight" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMatFlight_UsersProfile" Association="Self.FK_TechnicalMatFlight_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="TechnicalMatFlight" EntitySet="TechnicalMatFlight" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TestFlight_TechnicalMatFlight" Association="Self.FK_TestFlight_TechnicalMatFlight">
+            <End Role="TechnicalMatFlight" EntitySet="TechnicalMatFlight" />
+            <End Role="TestFlight" EntitySet="TestFlight" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TestingFaultDescription_Description" Association="Self.FK_TestingFaultDescription_Description">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="TestingFaultDescription" EntitySet="TestingFaultDescription" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TestingFaultDescription_TMT" Association="Self.FK_TestingFaultDescription_TMT">
+            <End Role="TechnicalMapTesting" EntitySet="TechnicalMapTesting" />
+            <End Role="TestingFaultDescription" EntitySet="TestingFaultDescription" />
+          </AssociationSet>
+          <AssociationSet Name="FK_UsersProfile_Role1" Association="Self.FK_UsersProfile_Role1">
+            <End Role="Role" EntitySet="Role" />
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+          </AssociationSet>
+          <AssociationSet Name="FK_UserWithPermissions_Permissions" Association="Self.FK_UserWithPermissions_Permissions">
+            <End Role="Permissions" EntitySet="Permissions" />
+            <End Role="UserWithPermissions" EntitySet="UserWithPermissions" />
+          </AssociationSet>
+          <AssociationSet Name="FK_UserWithPermissions_UsersProfile" Association="Self.FK_UserWithPermissions_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="UserWithPermissions" EntitySet="UserWithPermissions" />
+          </AssociationSet>
+        </EntityContainer>
+      </Schema></edmx:StorageModels>
+    <!-- CSDL content -->
+    <edmx:ConceptualModels>
+      <Schema Namespace="SaveDataModel" Alias="Self" annotation:UseStrongSpatialTypes="false" xmlns:annotation="http://schemas.microsoft.com/ado/2009/02/edm/annotation" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm">
+        <EntityType Name="Act">
+          <Key>
+            <PropertyRef Name="ActID" />
+          </Key>
+          <Property Name="ActID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="ActNumber" Type="String" MaxLength="6" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="IsReady" Type="Boolean" Nullable="false" />
+          <NavigationProperty Name="Product" Relationship="Self.FK_Product_Act" FromRole="Act" ToRole="Product" />
+          <NavigationProperty Name="BridgeLogSave" Relationship="SaveDataModel.FK_BridgeLogSave_Act" FromRole="Act" ToRole="BridgeLogSave" />
+        </EntityType>
+        <EntityType Name="Country">
+          <Key>
+            <PropertyRef Name="CountryID" />
+          </Key>
+          <Property Name="CountryID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="CountryName" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
+          <NavigationProperty Name="ProducType" Relationship="Self.FK_ProducType_Country" FromRole="Country" ToRole="ProducType" />
+        </EntityType>
+        <EntityType Name="Description">
+          <Key>
+            <PropertyRef Name="DescriptionID" />
+          </Key>
+          <Property Name="DescriptionID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="DescriptionText" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="TypeID" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="ProducType" Relationship="Self.FK_Description_ProducType" FromRole="Description" ToRole="ProducType" />
+          <NavigationProperty Name="Inspection" Relationship="Self.FK_Inspection_Description" FromRole="Description" ToRole="Inspection" />
+          <NavigationProperty Name="TechnicalMapAssembly" Relationship="Self.FK_TechnicalMapAssembly_Description" FromRole="Description" ToRole="TechnicalMapAssembly" />
+          <NavigationProperty Name="TechnicalMapTesting" Relationship="Self.FK_TechnicalMapTesting_Description" FromRole="Description" ToRole="TechnicalMapTesting" />
+          <NavigationProperty Name="TechnicalMapAssembly1" Relationship="Self.AssemblyFaultDescription" FromRole="Description" ToRole="TechnicalMapAssembly" />
+          <NavigationProperty Name="Error" Relationship="Self.ErrorDescription" FromRole="Description" ToRole="Error" />
+          <NavigationProperty Name="TechnicalMapTesting1" Relationship="Self.TestingFaultDescription" FromRole="Description" ToRole="TechnicalMapTesting" />
+        </EntityType>
+        <EntityType Name="Error">
+          <Key>
+            <PropertyRef Name="ErrorID" />
+          </Key>
+          <Property Name="ErrorID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="TMID" Type="Int32" />
+          <Property Name="PlaceID" Type="Int32" Nullable="false" />
+          <Property Name="Date" Type="DateTime" Nullable="false" Precision="0" />
+          <Property Name="ProductID" Type="Int32" />
+          <Property Name="inProgress" Type="Boolean" Nullable="false" />
+          <NavigationProperty Name="Place" Relationship="Self.FK_Error_Place" FromRole="Error" ToRole="Place" />
+          <NavigationProperty Name="Product" Relationship="Self.FK_Error_Product" FromRole="Error" ToRole="Product" />
+          <NavigationProperty Name="TechnicalMapFull" Relationship="Self.FK_Error_TechnicalMapFull" FromRole="Error" ToRole="TechnicalMapFull" />
+          <NavigationProperty Name="Inspection" Relationship="Self.FK_Inspection_Error" FromRole="Error" ToRole="Inspection" />
+          <NavigationProperty Name="Description" Relationship="Self.ErrorDescription" FromRole="Error" ToRole="Description" />
+        </EntityType>
+        <EntityType Name="Inspection">
+          <Key>
+            <PropertyRef Name="InspectionID" />
+          </Key>
+          <Property Name="InspectionID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="UserID" Type="Int32" Nullable="false" />
+          <Property Name="ErrorID" Type="Int32" Nullable="false" />
+          <Property Name="DescriptionID" Type="Int32" Nullable="false" />
+          <Property Name="ResultID" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="Description" Relationship="Self.FK_Inspection_Description" FromRole="Inspection" ToRole="Description" />
+          <NavigationProperty Name="Error" Relationship="Self.FK_Inspection_Error" FromRole="Inspection" ToRole="Error" />
+          <NavigationProperty Name="ResultTable" Relationship="Self.FK_Inspection_ResultTable" FromRole="Inspection" ToRole="ResultTable" />
+          <NavigationProperty Name="UsersProfile" Relationship="Self.FK_Inspection_UsersProfile" FromRole="Inspection" ToRole="UsersProfile" />
+        </EntityType>
+        <EntityType Name="Permissions">
+          <Key>
+            <PropertyRef Name="PermissionsID" />
+          </Key>
+          <Property Name="PermissionsID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="PermissionsName" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
+          <NavigationProperty Name="UserWithPermissions" Relationship="Self.FK_UserWithPermissions_Permissions" FromRole="Permissions" ToRole="UserWithPermissions" />
+        </EntityType>
+        <EntityType Name="Place">
+          <Key>
+            <PropertyRef Name="PlaceID" />
+          </Key>
+          <Property Name="PlaceID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="PlaceName" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
+          <NavigationProperty Name="Error" Relationship="Self.FK_Error_Place" FromRole="Place" ToRole="Error" />
+        </EntityType>
+        <EntityType Name="Product">
+          <Key>
+            <PropertyRef Name="ProductID" />
+          </Key>
+          <Property Name="ProductID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="ProductSerial" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="ActID" Type="Int32" />
+          <Property Name="TypeID" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="Act" Relationship="Self.FK_Product_Act" FromRole="Product" ToRole="Act" />
+          <NavigationProperty Name="Error" Relationship="Self.FK_Error_Product" FromRole="Product" ToRole="Error" />
+          <NavigationProperty Name="ProducType" Relationship="Self.FK_Product_ProducType" FromRole="Product" ToRole="ProducType" />
+          <NavigationProperty Name="TechnicalMapFull" Relationship="Self.FK_TechnicalMapFull_Product" FromRole="Product" ToRole="TechnicalMapFull" />
+          <NavigationProperty Name="TechnicalMatFlight" Relationship="Self.FK_TechnicalMatFlight_Product" FromRole="Product" ToRole="TechnicalMatFlight" />
+        </EntityType>
+        <EntityType Name="ProducType">
+          <Key>
+            <PropertyRef Name="TypeID" />
+          </Key>
+          <Property Name="TypeID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="TypeName" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="CountryID" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="Country" Relationship="Self.FK_ProducType_Country" FromRole="ProducType" ToRole="Country" />
+          <NavigationProperty Name="Description" Relationship="Self.FK_Description_ProducType" FromRole="ProducType" ToRole="Description" />
+          <NavigationProperty Name="Product" Relationship="Self.FK_Product_ProducType" FromRole="ProducType" ToRole="Product" />
+        </EntityType>
+        <EntityType Name="ResultTable">
+          <Key>
+            <PropertyRef Name="ResultID" />
+          </Key>
+          <Property Name="ResultID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="ResultText" Type="String" MaxLength="100" FixedLength="false" Unicode="true" Nullable="false" />
+          <NavigationProperty Name="Inspection" Relationship="Self.FK_Inspection_ResultTable" FromRole="ResultTable" ToRole="Inspection" />
+        </EntityType>
+        <EntityType Name="Role">
+          <Key>
+            <PropertyRef Name="RoleID" />
+          </Key>
+          <Property Name="RoleID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="RoleName" Type="String" MaxLength="25" FixedLength="false" Unicode="true" />
+          <NavigationProperty Name="UsersProfile" Relationship="Self.FK_UsersProfile_Role1" FromRole="Role" ToRole="UsersProfile" />
+        </EntityType>
+        <EntityType Name="SavePath">
+          <Key>
+            <PropertyRef Name="PathID" />
+          </Key>
+          <Property Name="SavePath1" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="PathID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="ActNumber" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
+        </EntityType>
+        <EntityType Name="sysdiagrams">
+          <Key>
+            <PropertyRef Name="diagram_id" />
+          </Key>
+          <Property Name="name" Type="String" MaxLength="128" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="principal_id" Type="Int32" Nullable="false" />
+          <Property Name="diagram_id" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="version" Type="Int32" />
+          <Property Name="definition" Type="Binary" MaxLength="Max" FixedLength="false" />
+        </EntityType>
+        <EntityType Name="TechnicalMapAssembly">
+          <Key>
+            <PropertyRef Name="TMAID" />
+          </Key>
+          <Property Name="TMAID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="UserID" Type="Int32" Nullable="false" />
+          <Property Name="Date" Type="DateTime" Nullable="false" Precision="0" />
+          <Property Name="TimeStart" Type="Time" Nullable="false" Precision="7" />
+          <Property Name="TimeEnd" Type="Time" Nullable="false" Precision="7" />
+          <Property Name="InProgress" Type="Boolean" Nullable="false" />
+          <Property Name="IsReady" Type="Boolean" Nullable="false" />
+          <Property Name="Fault" Type="Boolean" Nullable="false" />
+          <Property Name="DescriptionID" Type="Int32" />
+          <Property Name="TMID" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="Description" Relationship="Self.FK_TechnicalMapAssembly_Description" FromRole="TechnicalMapAssembly" ToRole="Description" />
+          <NavigationProperty Name="TechnicalMapFull" Relationship="Self.FK_TechnicalMapAssembly_TechnicalMapFull" FromRole="TechnicalMapAssembly" ToRole="TechnicalMapFull" />
+          <NavigationProperty Name="UsersProfile" Relationship="Self.FK_TechnicalMapAssembly_UsersProfile" FromRole="TechnicalMapAssembly" ToRole="UsersProfile" />
+          <NavigationProperty Name="Description1" Relationship="Self.AssemblyFaultDescription" FromRole="TechnicalMapAssembly" ToRole="Description" />
+        </EntityType>
+        <EntityType Name="TechnicalMapFull">
+          <Key>
+            <PropertyRef Name="TMID" />
+          </Key>
+          <Property Name="TMID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="ProductID" Type="Int32" Nullable="false" />
+          <Property Name="Inspection" Type="Boolean" Nullable="false" />
+          <NavigationProperty Name="Error" Relationship="Self.FK_Error_TechnicalMapFull" FromRole="TechnicalMapFull" ToRole="Error" />
+          <NavigationProperty Name="Product" Relationship="Self.FK_TechnicalMapFull_Product" FromRole="TechnicalMapFull" ToRole="Product" />
+          <NavigationProperty Name="TechnicalMapAssembly" Relationship="Self.FK_TechnicalMapAssembly_TechnicalMapFull" FromRole="TechnicalMapFull" ToRole="TechnicalMapAssembly" />
+          <NavigationProperty Name="TechnicalMapTesting" Relationship="Self.FK_TechnicalMapTesting_TechnicalMapFull" FromRole="TechnicalMapFull" ToRole="TechnicalMapTesting" />
+        </EntityType>
+        <EntityType Name="TechnicalMapTesting">
+          <Key>
+            <PropertyRef Name="TMTID" />
+          </Key>
+          <Property Name="TMTID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="UserID" Type="Int32" Nullable="false" />
+          <Property Name="Date" Type="DateTime" Nullable="false" Precision="0" />
+          <Property Name="TimeStart" Type="Time" Nullable="false" Precision="7" />
+          <Property Name="TimeEnd" Type="Time" Nullable="false" Precision="7" />
+          <Property Name="InProgress" Type="Boolean" Nullable="false" />
+          <Property Name="IsReadt" Type="Boolean" Nullable="false" />
+          <Property Name="Fault" Type="Boolean" Nullable="false" />
+          <Property Name="DescriptionID" Type="Int32" />
+          <Property Name="TMID" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="Description" Relationship="Self.FK_TechnicalMapTesting_Description" FromRole="TechnicalMapTesting" ToRole="Description" />
+          <NavigationProperty Name="TechnicalMapFull" Relationship="Self.FK_TechnicalMapTesting_TechnicalMapFull" FromRole="TechnicalMapTesting" ToRole="TechnicalMapFull" />
+          <NavigationProperty Name="UsersProfile" Relationship="Self.FK_TechnicalMapTesting_UsersProfile" FromRole="TechnicalMapTesting" ToRole="UsersProfile" />
+          <NavigationProperty Name="Description1" Relationship="Self.TestingFaultDescription" FromRole="TechnicalMapTesting" ToRole="Description" />
+        </EntityType>
+        <EntityType Name="TechnicalMatFlight">
+          <Key>
+            <PropertyRef Name="TFlightID" />
+          </Key>
+          <Property Name="TFlightID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="Date" Type="DateTime" Nullable="false" Precision="0" />
+          <Property Name="ProductID" Type="Int32" Nullable="false" />
+          <Property Name="UserID" Type="Int32" Nullable="false" />
+          <Property Name="Test_Pass" Type="Boolean" Nullable="false" />
+          <NavigationProperty Name="Product" Relationship="Self.FK_TechnicalMatFlight_Product" FromRole="TechnicalMatFlight" ToRole="Product" />
+          <NavigationProperty Name="UsersProfile" Relationship="Self.FK_TechnicalMatFlight_UsersProfile" FromRole="TechnicalMatFlight" ToRole="UsersProfile" />
+          <NavigationProperty Name="TestFlight" Relationship="Self.FK_TestFlight_TechnicalMatFlight" FromRole="TechnicalMatFlight" ToRole="TestFlight" />
+        </EntityType>
+        <EntityType Name="TestFlight">
+          <Key>
+            <PropertyRef Name="TestID" />
+          </Key>
+          <Property Name="TestID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="Visual" Type="Boolean" Nullable="false" />
+          <Property Name="Damage" Type="Boolean" Nullable="false" />
+          <Property Name="FC1" Type="Boolean" Nullable="false" />
+          <Property Name="FC2" Type="Boolean" Nullable="false" />
+          <Property Name="C_5V_FC1" Type="Boolean" Nullable="false" />
+          <Property Name="C_5V_FC2" Type="Boolean" Nullable="false" />
+          <Property Name="FC_Test_Pass" Type="Boolean" Nullable="false" />
+          <Property Name="Externa_Test_Pass" Type="Boolean" Nullable="false" />
+          <Property Name="Long_Test_Pass" Type="Boolean" Nullable="false" />
+          <Property Name="Result" Type="String" MaxLength="50" FixedLength="false" Unicode="true" />
+          <Property Name="Description" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <Property Name="TFlightID" Type="Int32" Nullable="false" />
+          <Property Name="Stand" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="TechnicalMatFlight" Relationship="Self.FK_TestFlight_TechnicalMatFlight" FromRole="TestFlight" ToRole="TechnicalMatFlight" />
+        </EntityType>
+        <EntityType Name="UsersProfile">
+          <Key>
+            <PropertyRef Name="UserID" />
+          </Key>
+          <Property Name="UserID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="UserName" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="UserLogin" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="UserPassword" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="RoleID" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="Inspection" Relationship="Self.FK_Inspection_UsersProfile" FromRole="UsersProfile" ToRole="Inspection" />
+          <NavigationProperty Name="Role" Relationship="Self.FK_UsersProfile_Role1" FromRole="UsersProfile" ToRole="Role" />
+          <NavigationProperty Name="TechnicalMapAssembly" Relationship="Self.FK_TechnicalMapAssembly_UsersProfile" FromRole="UsersProfile" ToRole="TechnicalMapAssembly" />
+          <NavigationProperty Name="TechnicalMapTesting" Relationship="Self.FK_TechnicalMapTesting_UsersProfile" FromRole="UsersProfile" ToRole="TechnicalMapTesting" />
+          <NavigationProperty Name="TechnicalMatFlight" Relationship="Self.FK_TechnicalMatFlight_UsersProfile" FromRole="UsersProfile" ToRole="TechnicalMatFlight" />
+          <NavigationProperty Name="UserWithPermissions" Relationship="Self.FK_UserWithPermissions_UsersProfile" FromRole="UsersProfile" ToRole="UserWithPermissions" />
+          <NavigationProperty Name="BridgeLogSave" Relationship="SaveDataModel.FK_BridgeLogSave_UsersProfile" FromRole="UsersProfile" ToRole="BridgeLogSave" />
+        </EntityType>
+        <EntityType Name="UserWithPermissions">
+          <Key>
+            <PropertyRef Name="PermAddID" />
+          </Key>
+          <Property Name="PermAddID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="UserID" Type="Int32" Nullable="false" />
+          <Property Name="PermissionsID" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="Permissions" Relationship="Self.FK_UserWithPermissions_Permissions" FromRole="UserWithPermissions" ToRole="Permissions" />
+          <NavigationProperty Name="UsersProfile" Relationship="Self.FK_UserWithPermissions_UsersProfile" FromRole="UserWithPermissions" ToRole="UsersProfile" />
+        </EntityType>
+        <Association Name="FK_Product_Act">
+          <End Role="Act" Type="Self.Act" Multiplicity="0..1" />
+          <End Role="Product" Type="Self.Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Act">
+              <PropertyRef Name="ActID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="ActID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ProducType_Country">
+          <End Role="Country" Type="Self.Country" Multiplicity="1" />
+          <End Role="ProducType" Type="Self.ProducType" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Country">
+              <PropertyRef Name="CountryID" />
+            </Principal>
+            <Dependent Role="ProducType">
+              <PropertyRef Name="CountryID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Description_ProducType">
+          <End Role="ProducType" Type="Self.ProducType" Multiplicity="1" />
+          <End Role="Description" Type="Self.Description" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="ProducType">
+              <PropertyRef Name="TypeID" />
+            </Principal>
+            <Dependent Role="Description">
+              <PropertyRef Name="TypeID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Inspection_Description">
+          <End Role="Description" Type="Self.Description" Multiplicity="1" />
+          <End Role="Inspection" Type="Self.Inspection" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Description">
+              <PropertyRef Name="DescriptionID" />
+            </Principal>
+            <Dependent Role="Inspection">
+              <PropertyRef Name="DescriptionID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapAssembly_Description">
+          <End Role="Description" Type="Self.Description" Multiplicity="0..1" />
+          <End Role="TechnicalMapAssembly" Type="Self.TechnicalMapAssembly" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Description">
+              <PropertyRef Name="DescriptionID" />
+            </Principal>
+            <Dependent Role="TechnicalMapAssembly">
+              <PropertyRef Name="DescriptionID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapTesting_Description">
+          <End Role="Description" Type="Self.Description" Multiplicity="0..1" />
+          <End Role="TechnicalMapTesting" Type="Self.TechnicalMapTesting" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Description">
+              <PropertyRef Name="DescriptionID" />
+            </Principal>
+            <Dependent Role="TechnicalMapTesting">
+              <PropertyRef Name="DescriptionID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Error_Place">
+          <End Role="Place" Type="Self.Place" Multiplicity="1" />
+          <End Role="Error" Type="Self.Error" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Place">
+              <PropertyRef Name="PlaceID" />
+            </Principal>
+            <Dependent Role="Error">
+              <PropertyRef Name="PlaceID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Error_Product">
+          <End Role="Product" Type="Self.Product" Multiplicity="0..1" />
+          <End Role="Error" Type="Self.Error" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Product">
+              <PropertyRef Name="ProductID" />
+            </Principal>
+            <Dependent Role="Error">
+              <PropertyRef Name="ProductID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Error_TechnicalMapFull">
+          <End Role="TechnicalMapFull" Type="Self.TechnicalMapFull" Multiplicity="0..1" />
+          <End Role="Error" Type="Self.Error" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapFull">
+              <PropertyRef Name="TMID" />
+            </Principal>
+            <Dependent Role="Error">
+              <PropertyRef Name="TMID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Inspection_Error">
+          <End Role="Error" Type="Self.Error" Multiplicity="1" />
+          <End Role="Inspection" Type="Self.Inspection" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Error">
+              <PropertyRef Name="ErrorID" />
+            </Principal>
+            <Dependent Role="Inspection">
+              <PropertyRef Name="ErrorID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Inspection_ResultTable">
+          <End Role="ResultTable" Type="Self.ResultTable" Multiplicity="1" />
+          <End Role="Inspection" Type="Self.Inspection" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="ResultTable">
+              <PropertyRef Name="ResultID" />
+            </Principal>
+            <Dependent Role="Inspection">
+              <PropertyRef Name="ResultID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Inspection_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="Inspection" Type="Self.Inspection" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="Inspection">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_UserWithPermissions_Permissions">
+          <End Role="Permissions" Type="Self.Permissions" Multiplicity="1" />
+          <End Role="UserWithPermissions" Type="Self.UserWithPermissions" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Permissions">
+              <PropertyRef Name="PermissionsID" />
+            </Principal>
+            <Dependent Role="UserWithPermissions">
+              <PropertyRef Name="PermissionsID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Product_ProducType">
+          <End Role="ProducType" Type="Self.ProducType" Multiplicity="1" />
+          <End Role="Product" Type="Self.Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="ProducType">
+              <PropertyRef Name="TypeID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="TypeID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapFull_Product">
+          <End Role="Product" Type="Self.Product" Multiplicity="1" />
+          <End Role="TechnicalMapFull" Type="Self.TechnicalMapFull" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Product">
+              <PropertyRef Name="ProductID" />
+            </Principal>
+            <Dependent Role="TechnicalMapFull">
+              <PropertyRef Name="ProductID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMatFlight_Product">
+          <End Role="Product" Type="Self.Product" Multiplicity="1" />
+          <End Role="TechnicalMatFlight" Type="Self.TechnicalMatFlight" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Product">
+              <PropertyRef Name="ProductID" />
+            </Principal>
+            <Dependent Role="TechnicalMatFlight">
+              <PropertyRef Name="ProductID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_UsersProfile_Role1">
+          <End Role="Role" Type="Self.Role" Multiplicity="1" />
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Role">
+              <PropertyRef Name="RoleID" />
+            </Principal>
+            <Dependent Role="UsersProfile">
+              <PropertyRef Name="RoleID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapAssembly_TechnicalMapFull">
+          <End Role="TechnicalMapFull" Type="Self.TechnicalMapFull" Multiplicity="1" />
+          <End Role="TechnicalMapAssembly" Type="Self.TechnicalMapAssembly" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapFull">
+              <PropertyRef Name="TMID" />
+            </Principal>
+            <Dependent Role="TechnicalMapAssembly">
+              <PropertyRef Name="TMID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapAssembly_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="TechnicalMapAssembly" Type="Self.TechnicalMapAssembly" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="TechnicalMapAssembly">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapTesting_TechnicalMapFull">
+          <End Role="TechnicalMapFull" Type="Self.TechnicalMapFull" Multiplicity="1" />
+          <End Role="TechnicalMapTesting" Type="Self.TechnicalMapTesting" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapFull">
+              <PropertyRef Name="TMID" />
+            </Principal>
+            <Dependent Role="TechnicalMapTesting">
+              <PropertyRef Name="TMID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMapTesting_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="TechnicalMapTesting" Type="Self.TechnicalMapTesting" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="TechnicalMapTesting">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TechnicalMatFlight_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="TechnicalMatFlight" Type="Self.TechnicalMatFlight" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="TechnicalMatFlight">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_TestFlight_TechnicalMatFlight">
+          <End Role="TechnicalMatFlight" Type="Self.TechnicalMatFlight" Multiplicity="1" />
+          <End Role="TestFlight" Type="Self.TestFlight" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMatFlight">
+              <PropertyRef Name="TFlightID" />
+            </Principal>
+            <Dependent Role="TestFlight">
+              <PropertyRef Name="TFlightID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_UserWithPermissions_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="UserWithPermissions" Type="Self.UserWithPermissions" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="UserWithPermissions">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="AssemblyFaultDescription">
+          <End Role="Description" Type="Self.Description" Multiplicity="*" />
+          <End Role="TechnicalMapAssembly" Type="Self.TechnicalMapAssembly" Multiplicity="*" />
+        </Association>
+        <Association Name="ErrorDescription">
+          <End Role="Description" Type="Self.Description" Multiplicity="*" />
+          <End Role="Error" Type="Self.Error" Multiplicity="*" />
+        </Association>
+        <Association Name="TestingFaultDescription">
+          <End Role="Description" Type="Self.Description" Multiplicity="*" />
+          <End Role="TechnicalMapTesting" Type="Self.TechnicalMapTesting" Multiplicity="*" />
+        </Association>
+        <EntityContainer Name="SaveDataEntities2" annotation:LazyLoadingEnabled="true">
+          <EntitySet Name="Act" EntityType="Self.Act" />
+          <EntitySet Name="Country" EntityType="Self.Country" />
+          <EntitySet Name="Description" EntityType="Self.Description" />
+          <EntitySet Name="Error" EntityType="Self.Error" />
+          <EntitySet Name="Inspection" EntityType="Self.Inspection" />
+          <EntitySet Name="Permissions" EntityType="Self.Permissions" />
+          <EntitySet Name="Place" EntityType="Self.Place" />
+          <EntitySet Name="Product" EntityType="Self.Product" />
+          <EntitySet Name="ProducType" EntityType="Self.ProducType" />
+          <EntitySet Name="ResultTable" EntityType="Self.ResultTable" />
+          <EntitySet Name="Role" EntityType="Self.Role" />
+          <EntitySet Name="SavePath" EntityType="Self.SavePath" />
+          <EntitySet Name="sysdiagrams" EntityType="Self.sysdiagrams" />
+          <EntitySet Name="TechnicalMapAssembly" EntityType="Self.TechnicalMapAssembly" />
+          <EntitySet Name="TechnicalMapFull" EntityType="Self.TechnicalMapFull" />
+          <EntitySet Name="TechnicalMapTesting" EntityType="Self.TechnicalMapTesting" />
+          <EntitySet Name="TechnicalMatFlight" EntityType="Self.TechnicalMatFlight" />
+          <EntitySet Name="TestFlight" EntityType="Self.TestFlight" />
+          <EntitySet Name="UsersProfile" EntityType="Self.UsersProfile" />
+          <EntitySet Name="UserWithPermissions" EntityType="Self.UserWithPermissions" />
+          <AssociationSet Name="FK_Product_Act" Association="Self.FK_Product_Act">
+            <End Role="Act" EntitySet="Act" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ProducType_Country" Association="Self.FK_ProducType_Country">
+            <End Role="Country" EntitySet="Country" />
+            <End Role="ProducType" EntitySet="ProducType" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Description_ProducType" Association="Self.FK_Description_ProducType">
+            <End Role="ProducType" EntitySet="ProducType" />
+            <End Role="Description" EntitySet="Description" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Inspection_Description" Association="Self.FK_Inspection_Description">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="Inspection" EntitySet="Inspection" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapAssembly_Description" Association="Self.FK_TechnicalMapAssembly_Description">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="TechnicalMapAssembly" EntitySet="TechnicalMapAssembly" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapTesting_Description" Association="Self.FK_TechnicalMapTesting_Description">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="TechnicalMapTesting" EntitySet="TechnicalMapTesting" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Error_Place" Association="Self.FK_Error_Place">
+            <End Role="Place" EntitySet="Place" />
+            <End Role="Error" EntitySet="Error" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Error_Product" Association="Self.FK_Error_Product">
+            <End Role="Product" EntitySet="Product" />
+            <End Role="Error" EntitySet="Error" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Error_TechnicalMapFull" Association="Self.FK_Error_TechnicalMapFull">
+            <End Role="TechnicalMapFull" EntitySet="TechnicalMapFull" />
+            <End Role="Error" EntitySet="Error" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Inspection_Error" Association="Self.FK_Inspection_Error">
+            <End Role="Error" EntitySet="Error" />
+            <End Role="Inspection" EntitySet="Inspection" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Inspection_ResultTable" Association="Self.FK_Inspection_ResultTable">
+            <End Role="ResultTable" EntitySet="ResultTable" />
+            <End Role="Inspection" EntitySet="Inspection" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Inspection_UsersProfile" Association="Self.FK_Inspection_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="Inspection" EntitySet="Inspection" />
+          </AssociationSet>
+          <AssociationSet Name="FK_UserWithPermissions_Permissions" Association="Self.FK_UserWithPermissions_Permissions">
+            <End Role="Permissions" EntitySet="Permissions" />
+            <End Role="UserWithPermissions" EntitySet="UserWithPermissions" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Product_ProducType" Association="Self.FK_Product_ProducType">
+            <End Role="ProducType" EntitySet="ProducType" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapFull_Product" Association="Self.FK_TechnicalMapFull_Product">
+            <End Role="Product" EntitySet="Product" />
+            <End Role="TechnicalMapFull" EntitySet="TechnicalMapFull" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMatFlight_Product" Association="Self.FK_TechnicalMatFlight_Product">
+            <End Role="Product" EntitySet="Product" />
+            <End Role="TechnicalMatFlight" EntitySet="TechnicalMatFlight" />
+          </AssociationSet>
+          <AssociationSet Name="FK_UsersProfile_Role1" Association="Self.FK_UsersProfile_Role1">
+            <End Role="Role" EntitySet="Role" />
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapAssembly_TechnicalMapFull" Association="Self.FK_TechnicalMapAssembly_TechnicalMapFull">
+            <End Role="TechnicalMapFull" EntitySet="TechnicalMapFull" />
+            <End Role="TechnicalMapAssembly" EntitySet="TechnicalMapAssembly" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapAssembly_UsersProfile" Association="Self.FK_TechnicalMapAssembly_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="TechnicalMapAssembly" EntitySet="TechnicalMapAssembly" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapTesting_TechnicalMapFull" Association="Self.FK_TechnicalMapTesting_TechnicalMapFull">
+            <End Role="TechnicalMapFull" EntitySet="TechnicalMapFull" />
+            <End Role="TechnicalMapTesting" EntitySet="TechnicalMapTesting" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMapTesting_UsersProfile" Association="Self.FK_TechnicalMapTesting_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="TechnicalMapTesting" EntitySet="TechnicalMapTesting" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TechnicalMatFlight_UsersProfile" Association="Self.FK_TechnicalMatFlight_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="TechnicalMatFlight" EntitySet="TechnicalMatFlight" />
+          </AssociationSet>
+          <AssociationSet Name="FK_TestFlight_TechnicalMatFlight" Association="Self.FK_TestFlight_TechnicalMatFlight">
+            <End Role="TechnicalMatFlight" EntitySet="TechnicalMatFlight" />
+            <End Role="TestFlight" EntitySet="TestFlight" />
+          </AssociationSet>
+          <AssociationSet Name="FK_UserWithPermissions_UsersProfile" Association="Self.FK_UserWithPermissions_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="UserWithPermissions" EntitySet="UserWithPermissions" />
+          </AssociationSet>
+          <AssociationSet Name="AssemblyFaultDescription" Association="Self.AssemblyFaultDescription">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="TechnicalMapAssembly" EntitySet="TechnicalMapAssembly" />
+          </AssociationSet>
+          <AssociationSet Name="ErrorDescription" Association="Self.ErrorDescription">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="Error" EntitySet="Error" />
+          </AssociationSet>
+          <AssociationSet Name="TestingFaultDescription" Association="Self.TestingFaultDescription">
+            <End Role="Description" EntitySet="Description" />
+            <End Role="TechnicalMapTesting" EntitySet="TechnicalMapTesting" />
+          </AssociationSet>
+          <FunctionImport Name="sp_alterdiagram">
+            <Parameter Name="diagramname" Mode="In" Type="String" />
+            <Parameter Name="owner_id" Mode="In" Type="Int32" />
+            <Parameter Name="version" Mode="In" Type="Int32" />
+            <Parameter Name="definition" Mode="In" Type="Binary" />
+          </FunctionImport>
+          <FunctionImport Name="sp_creatediagram">
+            <Parameter Name="diagramname" Mode="In" Type="String" />
+            <Parameter Name="owner_id" Mode="In" Type="Int32" />
+            <Parameter Name="version" Mode="In" Type="Int32" />
+            <Parameter Name="definition" Mode="In" Type="Binary" />
+          </FunctionImport>
+          <FunctionImport Name="sp_dropdiagram">
+            <Parameter Name="diagramname" Mode="In" Type="String" />
+            <Parameter Name="owner_id" Mode="In" Type="Int32" />
+          </FunctionImport>
+          <FunctionImport Name="sp_helpdiagramdefinition" ReturnType="Collection(SaveDataModel.sp_helpdiagramdefinition_Result)">
+            <Parameter Name="diagramname" Mode="In" Type="String" />
+            <Parameter Name="owner_id" Mode="In" Type="Int32" />
+          </FunctionImport>
+          <FunctionImport Name="sp_helpdiagrams" ReturnType="Collection(SaveDataModel.sp_helpdiagrams_Result)">
+            <Parameter Name="diagramname" Mode="In" Type="String" />
+            <Parameter Name="owner_id" Mode="In" Type="Int32" />
+          </FunctionImport>
+          <FunctionImport Name="sp_renamediagram">
+            <Parameter Name="diagramname" Mode="In" Type="String" />
+            <Parameter Name="owner_id" Mode="In" Type="Int32" />
+            <Parameter Name="new_diagramname" Mode="In" Type="String" />
+          </FunctionImport>
+          <FunctionImport Name="sp_upgraddiagrams" />
+          <EntitySet Name="BridgeLogSave" EntityType="SaveDataModel.BridgeLogSave" />
+          <AssociationSet Name="FK_BridgeLogSave_Act" Association="SaveDataModel.FK_BridgeLogSave_Act">
+            <End Role="Act" EntitySet="Act" />
+            <End Role="BridgeLogSave" EntitySet="BridgeLogSave" />
+          </AssociationSet>
+          <AssociationSet Name="FK_BridgeLogSave_UsersProfile" Association="SaveDataModel.FK_BridgeLogSave_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="BridgeLogSave" EntitySet="BridgeLogSave" />
+          </AssociationSet>
+        </EntityContainer>
+        <ComplexType Name="sp_helpdiagramdefinition_Result">
+          <Property Type="Int32" Name="version" Nullable="true" />
+          <Property Type="Binary" Name="definition" Nullable="true" />
+        </ComplexType>
+        <ComplexType Name="sp_helpdiagrams_Result">
+          <Property Type="String" Name="Database" Nullable="true" MaxLength="128" />
+          <Property Type="String" Name="Name" Nullable="false" MaxLength="128" />
+          <Property Type="Int32" Name="ID" Nullable="false" />
+          <Property Type="String" Name="Owner" Nullable="true" MaxLength="128" />
+          <Property Type="Int32" Name="OwnerID" Nullable="false" />
+        </ComplexType>
+        <EntityType Name="BridgeLogSave">
+          <Key>
+            <PropertyRef Name="BridgeLogSaveID" />
+          </Key>
+          <Property Name="BridgeLogSaveID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="ActID" Type="Int32" Nullable="false" />
+          <Property Name="UserID" Type="Int32" Nullable="false" />
+          <Property Name="SerialNumber" Type="String" Nullable="false" MaxLength="120" FixedLength="false" Unicode="true" />
+          <Property Name="SavedUtc" Type="DateTime" Nullable="false" Precision="7" />
+          <Property Name="UnifiedLogText" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <Property Name="StatusJson" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <Property Name="MavlinkJson" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <NavigationProperty Name="Act" Relationship="SaveDataModel.FK_BridgeLogSave_Act" FromRole="BridgeLogSave" ToRole="Act" />
+          <NavigationProperty Name="UsersProfile" Relationship="SaveDataModel.FK_BridgeLogSave_UsersProfile" FromRole="BridgeLogSave" ToRole="UsersProfile" />
+        </EntityType>
+        <Association Name="FK_BridgeLogSave_Act">
+          <End Type="SaveDataModel.Act" Role="Act" Multiplicity="1" />
+          <End Type="SaveDataModel.BridgeLogSave" Role="BridgeLogSave" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Act">
+              <PropertyRef Name="ActID" />
+            </Principal>
+            <Dependent Role="BridgeLogSave">
+              <PropertyRef Name="ActID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_BridgeLogSave_UsersProfile">
+          <End Type="SaveDataModel.UsersProfile" Role="UsersProfile" Multiplicity="1" />
+          <End Type="SaveDataModel.BridgeLogSave" Role="BridgeLogSave" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="BridgeLogSave">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+      </Schema>
+    </edmx:ConceptualModels>
+    <!-- C-S mapping content -->
+    <edmx:Mappings>
+      <Mapping Space="C-S" xmlns="http://schemas.microsoft.com/ado/2009/11/mapping/cs">
+        <EntityContainerMapping StorageEntityContainer="Хранилище SaveDataModelContainer" CdmEntityContainer="SaveDataEntities2">
+          <EntitySetMapping Name="Act">
+            <EntityTypeMapping TypeName="SaveDataModel.Act">
+              <MappingFragment StoreEntitySet="Act">
+                <ScalarProperty Name="ActID" ColumnName="ActID" />
+                <ScalarProperty Name="ActNumber" ColumnName="ActNumber" />
+                <ScalarProperty Name="IsReady" ColumnName="IsReady" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="Country">
+            <EntityTypeMapping TypeName="SaveDataModel.Country">
+              <MappingFragment StoreEntitySet="Country">
+                <ScalarProperty Name="CountryID" ColumnName="CountryID" />
+                <ScalarProperty Name="CountryName" ColumnName="CountryName" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="Description">
+            <EntityTypeMapping TypeName="SaveDataModel.Description">
+              <MappingFragment StoreEntitySet="Description">
+                <ScalarProperty Name="DescriptionID" ColumnName="DescriptionID" />
+                <ScalarProperty Name="DescriptionText" ColumnName="DescriptionText" />
+                <ScalarProperty Name="TypeID" ColumnName="TypeID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="Error">
+            <EntityTypeMapping TypeName="SaveDataModel.Error">
+              <MappingFragment StoreEntitySet="Error">
+                <ScalarProperty Name="ErrorID" ColumnName="ErrorID" />
+                <ScalarProperty Name="TMID" ColumnName="TMID" />
+                <ScalarProperty Name="PlaceID" ColumnName="PlaceID" />
+                <ScalarProperty Name="Date" ColumnName="Date" />
+                <ScalarProperty Name="ProductID" ColumnName="ProductID" />
+                <ScalarProperty Name="inProgress" ColumnName="inProgress" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="Inspection">
+            <EntityTypeMapping TypeName="SaveDataModel.Inspection">
+              <MappingFragment StoreEntitySet="Inspection">
+                <ScalarProperty Name="InspectionID" ColumnName="InspectionID" />
+                <ScalarProperty Name="UserID" ColumnName="UserID" />
+                <ScalarProperty Name="ErrorID" ColumnName="ErrorID" />
+                <ScalarProperty Name="DescriptionID" ColumnName="DescriptionID" />
+                <ScalarProperty Name="ResultID" ColumnName="ResultID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="Permissions">
+            <EntityTypeMapping TypeName="SaveDataModel.Permissions">
+              <MappingFragment StoreEntitySet="Permissions">
+                <ScalarProperty Name="PermissionsID" ColumnName="PermissionsID" />
+                <ScalarProperty Name="PermissionsName" ColumnName="PermissionsName" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="Place">
+            <EntityTypeMapping TypeName="SaveDataModel.Place">
+              <MappingFragment StoreEntitySet="Place">
+                <ScalarProperty Name="PlaceID" ColumnName="PlaceID" />
+                <ScalarProperty Name="PlaceName" ColumnName="PlaceName" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="Product">
+            <EntityTypeMapping TypeName="SaveDataModel.Product">
+              <MappingFragment StoreEntitySet="Product">
+                <ScalarProperty Name="ProductID" ColumnName="ProductID" />
+                <ScalarProperty Name="ProductSerial" ColumnName="ProductSerial" />
+                <ScalarProperty Name="ActID" ColumnName="ActID" />
+                <ScalarProperty Name="TypeID" ColumnName="TypeID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="ProducType">
+            <EntityTypeMapping TypeName="SaveDataModel.ProducType">
+              <MappingFragment StoreEntitySet="ProducType">
+                <ScalarProperty Name="TypeID" ColumnName="TypeID" />
+                <ScalarProperty Name="TypeName" ColumnName="TypeName" />
+                <ScalarProperty Name="CountryID" ColumnName="CountryID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="ResultTable">
+            <EntityTypeMapping TypeName="SaveDataModel.ResultTable">
+              <MappingFragment StoreEntitySet="ResultTable">
+                <ScalarProperty Name="ResultID" ColumnName="ResultID" />
+                <ScalarProperty Name="ResultText" ColumnName="ResultText" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="Role">
+            <EntityTypeMapping TypeName="SaveDataModel.Role">
+              <MappingFragment StoreEntitySet="Role">
+                <ScalarProperty Name="RoleID" ColumnName="RoleID" />
+                <ScalarProperty Name="RoleName" ColumnName="RoleName" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="SavePath">
+            <EntityTypeMapping TypeName="SaveDataModel.SavePath">
+              <MappingFragment StoreEntitySet="SavePath">
+                <ScalarProperty Name="SavePath1" ColumnName="SavePath" />
+                <ScalarProperty Name="PathID" ColumnName="PathID" />
+                <ScalarProperty Name="ActNumber" ColumnName="ActNumber" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="sysdiagrams">
+            <EntityTypeMapping TypeName="SaveDataModel.sysdiagrams">
+              <MappingFragment StoreEntitySet="sysdiagrams">
+                <ScalarProperty Name="name" ColumnName="name" />
+                <ScalarProperty Name="principal_id" ColumnName="principal_id" />
+                <ScalarProperty Name="diagram_id" ColumnName="diagram_id" />
+                <ScalarProperty Name="version" ColumnName="version" />
+                <ScalarProperty Name="definition" ColumnName="definition" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="TechnicalMapAssembly">
+            <EntityTypeMapping TypeName="SaveDataModel.TechnicalMapAssembly">
+              <MappingFragment StoreEntitySet="TechnicalMapAssembly">
+                <ScalarProperty Name="TMAID" ColumnName="TMAID" />
+                <ScalarProperty Name="UserID" ColumnName="UserID" />
+                <ScalarProperty Name="Date" ColumnName="Date" />
+                <ScalarProperty Name="TimeStart" ColumnName="TimeStart" />
+                <ScalarProperty Name="TimeEnd" ColumnName="TimeEnd" />
+                <ScalarProperty Name="InProgress" ColumnName="InProgress" />
+                <ScalarProperty Name="IsReady" ColumnName="IsReady" />
+                <ScalarProperty Name="Fault" ColumnName="Fault" />
+                <ScalarProperty Name="DescriptionID" ColumnName="DescriptionID" />
+                <ScalarProperty Name="TMID" ColumnName="TMID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="TechnicalMapFull">
+            <EntityTypeMapping TypeName="SaveDataModel.TechnicalMapFull">
+              <MappingFragment StoreEntitySet="TechnicalMapFull">
+                <ScalarProperty Name="TMID" ColumnName="TMID" />
+                <ScalarProperty Name="ProductID" ColumnName="ProductID" />
+                <ScalarProperty Name="Inspection" ColumnName="Inspection" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="TechnicalMapTesting">
+            <EntityTypeMapping TypeName="SaveDataModel.TechnicalMapTesting">
+              <MappingFragment StoreEntitySet="TechnicalMapTesting">
+                <ScalarProperty Name="TMTID" ColumnName="TMTID" />
+                <ScalarProperty Name="UserID" ColumnName="UserID" />
+                <ScalarProperty Name="Date" ColumnName="Date" />
+                <ScalarProperty Name="TimeStart" ColumnName="TimeStart" />
+                <ScalarProperty Name="TimeEnd" ColumnName="TimeEnd" />
+                <ScalarProperty Name="InProgress" ColumnName="InProgress" />
+                <ScalarProperty Name="IsReadt" ColumnName="IsReadt" />
+                <ScalarProperty Name="Fault" ColumnName="Fault" />
+                <ScalarProperty Name="DescriptionID" ColumnName="DescriptionID" />
+                <ScalarProperty Name="TMID" ColumnName="TMID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="TechnicalMatFlight">
+            <EntityTypeMapping TypeName="SaveDataModel.TechnicalMatFlight">
+              <MappingFragment StoreEntitySet="TechnicalMatFlight">
+                <ScalarProperty Name="TFlightID" ColumnName="TFlightID" />
+                <ScalarProperty Name="Date" ColumnName="Date" />
+                <ScalarProperty Name="ProductID" ColumnName="ProductID" />
+                <ScalarProperty Name="UserID" ColumnName="UserID" />
+                <ScalarProperty Name="Test_Pass" ColumnName="Test_Pass" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="TestFlight">
+            <EntityTypeMapping TypeName="SaveDataModel.TestFlight">
+              <MappingFragment StoreEntitySet="TestFlight">
+                <ScalarProperty Name="TestID" ColumnName="TestID" />
+                <ScalarProperty Name="Visual" ColumnName="Visual" />
+                <ScalarProperty Name="Damage" ColumnName="Damage" />
+                <ScalarProperty Name="FC1" ColumnName="FC1" />
+                <ScalarProperty Name="FC2" ColumnName="FC2" />
+                <ScalarProperty Name="C_5V_FC1" ColumnName="+5V_FC1" />
+                <ScalarProperty Name="C_5V_FC2" ColumnName="+5V_FC2" />
+                <ScalarProperty Name="FC_Test_Pass" ColumnName="FC_Test_Pass" />
+                <ScalarProperty Name="Externa_Test_Pass" ColumnName="Externa_Test_Pass" />
+                <ScalarProperty Name="Long_Test_Pass" ColumnName="Long_Test_Pass" />
+                <ScalarProperty Name="Result" ColumnName="Result" />
+                <ScalarProperty Name="Description" ColumnName="Description" />
+                <ScalarProperty Name="TFlightID" ColumnName="TFlightID" />
+                <ScalarProperty Name="Stand" ColumnName="Stand" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="UsersProfile">
+            <EntityTypeMapping TypeName="SaveDataModel.UsersProfile">
+              <MappingFragment StoreEntitySet="UsersProfile">
+                <ScalarProperty Name="UserID" ColumnName="UserID" />
+                <ScalarProperty Name="UserName" ColumnName="UserName" />
+                <ScalarProperty Name="UserLogin" ColumnName="UserLogin" />
+                <ScalarProperty Name="UserPassword" ColumnName="UserPassword" />
+                <ScalarProperty Name="RoleID" ColumnName="RoleID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="UserWithPermissions">
+            <EntityTypeMapping TypeName="SaveDataModel.UserWithPermissions">
+              <MappingFragment StoreEntitySet="UserWithPermissions">
+                <ScalarProperty Name="PermAddID" ColumnName="PermAddID" />
+                <ScalarProperty Name="UserID" ColumnName="UserID" />
+                <ScalarProperty Name="PermissionsID" ColumnName="PermissionsID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <AssociationSetMapping Name="AssemblyFaultDescription" TypeName="SaveDataModel.AssemblyFaultDescription" StoreEntitySet="AssemblyFaultDescription">
+            <EndProperty Name="Description">
+              <ScalarProperty Name="DescriptionID" ColumnName="DescriptionID" />
+            </EndProperty>
+            <EndProperty Name="TechnicalMapAssembly">
+              <ScalarProperty Name="TMAID" ColumnName="TMAID" />
+            </EndProperty>
+          </AssociationSetMapping>
+          <AssociationSetMapping Name="ErrorDescription" TypeName="SaveDataModel.ErrorDescription" StoreEntitySet="ErrorDescription">
+            <EndProperty Name="Description">
+              <ScalarProperty Name="DescriptionID" ColumnName="DescriptionID" />
+            </EndProperty>
+            <EndProperty Name="Error">
+              <ScalarProperty Name="ErrorID" ColumnName="ErrorID" />
+            </EndProperty>
+          </AssociationSetMapping>
+          <AssociationSetMapping Name="TestingFaultDescription" TypeName="SaveDataModel.TestingFaultDescription" StoreEntitySet="TestingFaultDescription">
+            <EndProperty Name="Description">
+              <ScalarProperty Name="DescriptionID" ColumnName="DescriptionID" />
+            </EndProperty>
+            <EndProperty Name="TechnicalMapTesting">
+              <ScalarProperty Name="TMTID" ColumnName="TMTID" />
+            </EndProperty>
+          </AssociationSetMapping>
+          <FunctionImportMapping FunctionImportName="sp_alterdiagram" FunctionName="Хранилище SaveDataModel.sp_alterdiagram" />
+          <FunctionImportMapping FunctionImportName="sp_creatediagram" FunctionName="Хранилище SaveDataModel.sp_creatediagram" />
+          <FunctionImportMapping FunctionImportName="sp_dropdiagram" FunctionName="Хранилище SaveDataModel.sp_dropdiagram" />
+          <FunctionImportMapping FunctionImportName="sp_helpdiagramdefinition" FunctionName="Хранилище SaveDataModel.sp_helpdiagramdefinition">
+            <ResultMapping>
+              <ComplexTypeMapping TypeName="SaveDataModel.sp_helpdiagramdefinition_Result">
+                <ScalarProperty Name="version" ColumnName="version" />
+                <ScalarProperty Name="definition" ColumnName="definition" />
+              </ComplexTypeMapping>
+            </ResultMapping>
+          </FunctionImportMapping>
+          <FunctionImportMapping FunctionImportName="sp_helpdiagrams" FunctionName="Хранилище SaveDataModel.sp_helpdiagrams">
+            <ResultMapping>
+              <ComplexTypeMapping TypeName="SaveDataModel.sp_helpdiagrams_Result">
+                <ScalarProperty Name="Database" ColumnName="Database" />
+                <ScalarProperty Name="Name" ColumnName="Name" />
+                <ScalarProperty Name="ID" ColumnName="ID" />
+                <ScalarProperty Name="Owner" ColumnName="Owner" />
+                <ScalarProperty Name="OwnerID" ColumnName="OwnerID" />
+              </ComplexTypeMapping>
+            </ResultMapping>
+          </FunctionImportMapping>
+          <FunctionImportMapping FunctionImportName="sp_renamediagram" FunctionName="Хранилище SaveDataModel.sp_renamediagram" />
+          <FunctionImportMapping FunctionImportName="sp_upgraddiagrams" FunctionName="Хранилище SaveDataModel.sp_upgraddiagrams" />
+          <EntitySetMapping Name="BridgeLogSave">
+            <EntityTypeMapping TypeName="SaveDataModel.BridgeLogSave">
+              <MappingFragment StoreEntitySet="BridgeLogSave">
+                <ScalarProperty Name="MavlinkJson" ColumnName="MavlinkJson" />
+                <ScalarProperty Name="StatusJson" ColumnName="StatusJson" />
+                <ScalarProperty Name="UnifiedLogText" ColumnName="UnifiedLogText" />
+                <ScalarProperty Name="SavedUtc" ColumnName="SavedUtc" />
+                <ScalarProperty Name="SerialNumber" ColumnName="SerialNumber" />
+                <ScalarProperty Name="UserID" ColumnName="UserID" />
+                <ScalarProperty Name="ActID" ColumnName="ActID" />
+                <ScalarProperty Name="BridgeLogSaveID" ColumnName="BridgeLogSaveID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+        </EntityContainerMapping>
+      </Mapping>
+    </edmx:Mappings>
+  </edmx:Runtime>
+  <!-- EF Designer content (DO NOT EDIT MANUALLY BELOW HERE) -->
+  <Designer xmlns="http://schemas.microsoft.com/ado/2009/11/edmx">
+    <Connection>
+      <DesignerInfoPropertySet>
+        <DesignerProperty Name="MetadataArtifactProcessing" Value="EmbedInOutputAssembly" />
+      </DesignerInfoPropertySet>
+    </Connection>
+    <Options>
+      <DesignerInfoPropertySet>
+        <DesignerProperty Name="ValidateOnBuild" Value="true" />
+        <DesignerProperty Name="EnablePluralization" Value="false" />
+        <DesignerProperty Name="IncludeForeignKeysInModel" Value="true" />
+        <DesignerProperty Name="UseLegacyProvider" Value="false" />
+        <DesignerProperty Name="CodeGenerationStrategy" Value="Нет" />
+      </DesignerInfoPropertySet>
+    </Options>
+    <!-- Diagram content (shape and connector positions) -->
+    <Diagrams></Diagrams>
+  </Designer>
+</edmx:Edmx>

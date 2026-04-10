@@ -1,0 +1,408 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\EntityFramework.6.5.1\build\EntityFramework.props" Condition="Exists('..\packages\EntityFramework.6.5.1\build\EntityFramework.props')" />
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{6451FF69-652A-4DFA-AA91-5FCD62CDB89E}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>SaveData1</RootNamespace>
+    <AssemblyName>SaveData1</AssemblyName>
+    <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>..\packages\EntityFramework.6.5.1\lib\net45\EntityFramework.dll</HintPath>
+    </Reference>
+    <Reference Include="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>..\packages\EntityFramework.6.5.1\lib\net45\EntityFramework.SqlServer.dll</HintPath>
+    </Reference>
+    <Reference Include="QRCoder, Version=1.6.0.0, Culture=neutral, PublicKeyToken=c4ed5b9ae8358a28, processorArchitecture=MSIL">
+      <HintPath>..\packages\QRCoder.1.6.0\lib\net40\QRCoder.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Xml" />
+    <Reference Include="Microsoft.Office.Interop.Word">
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c">
+      <HintPath>C:\Windows\assembly\GAC_MSIL\Microsoft.Office.Interop.Excel\15.0.0.0__71e9bce111e9429c\Microsoft.Office.Interop.Excel.dll</HintPath>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="NAudio, Version=2.2.1.0, Culture=neutral, PublicKeyToken=e279aa5131008a41, processorArchitecture=MSIL">
+      <HintPath>..\packages\NAudio.2.2.1\lib\net472\NAudio.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Asio, Version=2.2.1.0, Culture=neutral, PublicKeyToken=e279aa5131008a41, processorArchitecture=MSIL">
+      <HintPath>..\packages\NAudio.Asio.2.2.1\lib\netstandard2.0\NAudio.Asio.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Core, Version=2.2.1.0, Culture=neutral, PublicKeyToken=e279aa5131008a41, processorArchitecture=MSIL">
+      <HintPath>..\packages\NAudio.Core.2.2.1\lib\netstandard2.0\NAudio.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Midi, Version=2.2.1.0, Culture=neutral, PublicKeyToken=e279aa5131008a41, processorArchitecture=MSIL">
+      <HintPath>..\packages\NAudio.Midi.2.2.1\lib\netstandard2.0\NAudio.Midi.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Wasapi, Version=2.2.1.0, Culture=neutral, PublicKeyToken=e279aa5131008a41, processorArchitecture=MSIL">
+      <HintPath>..\packages\NAudio.Wasapi.2.2.1\lib\netstandard2.0\NAudio.Wasapi.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.WinForms, Version=2.2.1.0, Culture=neutral, PublicKeyToken=e279aa5131008a41, processorArchitecture=MSIL">
+      <HintPath>..\packages\NAudio.WinForms.2.2.1\lib\net472\NAudio.WinForms.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.WinMM, Version=2.2.1.0, Culture=neutral, PublicKeyToken=e279aa5131008a41, processorArchitecture=MSIL">
+      <HintPath>..\packages\NAudio.WinMM.2.2.1\lib\netstandard2.0\NAudio.WinMM.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Entity\Act.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\BridgeLogSave.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\Country.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\Description.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\Error.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\Inspection.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\Model1.Context.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Model1.Context.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\Model1.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\Model1.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Model1.edmx</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\Permissions.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\Place.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\Product.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\ProducType.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\ResultTable.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\Role.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\SavePath.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\sp_helpdiagramdefinition_Result.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\sp_helpdiagrams_Result.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\sysdiagrams.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\TechnicalMapAssembly.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\TechnicalMapFull.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\TechnicalMapTesting.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\TechnicalMatFlight.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\TestFlight.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\UsersProfile.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\UserWithPermissions.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\Form1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\Form1.Designer.cs">
+      <DependentUpon>Form1.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\LoginForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\LoginForm.Designer.cs">
+      <DependentUpon>LoginForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\WarehouseForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\WarehouseForm.Designer.cs">
+      <DependentUpon>WarehouseForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\BridgeLogForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\BridgeLogForm.Designer.cs">
+      <DependentUpon>BridgeLogForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\EmployeeForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\EmployeeForm.Designer.cs">
+      <DependentUpon>EmployeeForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\UserEditDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\UserEditDialog.Designer.cs">
+      <DependentUpon>UserEditDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\SettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\SettingsForm.Designer.cs">
+      <DependentUpon>SettingsForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\ProductWorkForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\ProductWorkForm.Designer.cs">
+      <DependentUpon>ProductWorkForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\AutoTestRowControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Froms\AutoTestRowControl.Designer.cs">
+      <DependentUpon>AutoTestRowControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\AutoTestingForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\AutoTestingForm.Designer.cs">
+      <DependentUpon>AutoTestingForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\CrossPlateTestingPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Froms\CrossPlateTestingPanel.Designer.cs">
+      <DependentUpon>CrossPlateTestingPanel.cs</DependentUpon>
+    </Compile>
+    <Compile Include="CrossPlateTesting\Models\AppConfig.cs" />
+    <Compile Include="CrossPlateTesting\Models\ParameterReference.cs" />
+    <Compile Include="CrossPlateTesting\Models\ScriptNode.cs" />
+    <Compile Include="CrossPlateTesting\Models\Stand.cs" />
+    <Compile Include="CrossPlateTesting\Services\BridgeUnifiedLogSaveService.cs" />
+    <Compile Include="CrossPlateTesting\Services\CrossPlateConfigService.cs" />
+    <Compile Include="CrossPlateTesting\Services\CrossPlateDbHelper.cs" />
+    <Compile Include="CrossPlateTesting\Services\DelaySettings.cs" />
+    <Compile Include="CrossPlateTesting\Services\ExcelReportService.cs" />
+    <Compile Include="CrossPlateTesting\Services\MavLinkService.cs" />
+    <Compile Include="CrossPlateTesting\Services\MavParamScriptService.cs" />
+    <Compile Include="CrossPlateTesting\Services\ScriptNodeTreeExecutor.cs" />
+    <Compile Include="CrossPlateTesting\Services\StandRunnerService.cs" />
+    <Compile Include="CrossPlateTesting\Services\WifiInfoService.cs" />
+    <Compile Include="CrossPlateTesting\Controls\ScriptCanvasControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="CrossPlateTesting\ScriptGeneratorForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="CrossPlateTesting\ScriptGeneratorForm.Designer.cs">
+      <DependentUpon>ScriptGeneratorForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\ChangeStatusForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\ChangeStatusForm.Designer.cs">
+      <DependentUpon>ChangeStatusForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\ExportExcelOptionsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\ExportExcelOptionsForm.Designer.cs">
+      <DependentUpon>ExportExcelOptionsForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\SaveDataEntitiesPartial.cs" />
+    <Compile Include="ConnectionHelper.cs" />
+    <Compile Include="Helpers\QrCodeHelper.cs" />
+    <Compile Include="Helpers\UsbHelper.cs" />
+    <Compile Include="Helpers\StandsStateHelper.cs" />
+    <Compile Include="Helpers\InputDialogHelper.cs" />
+    <Compile Include="Froms\SoundTestForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\SoundTestForm.Designer.cs">
+      <DependentUpon>SoundTestForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\NonConformityForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\NonConformityForm.Designer.cs">
+      <DependentUpon>NonConformityForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\ProductSerialEditDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\ProductSerialEditDialog.Designer.cs">
+      <DependentUpon>ProductSerialEditDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\InspectionWorkForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\InspectionWorkForm.Designer.cs">
+      <DependentUpon>InspectionWorkForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\FlightTestErrorForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\FlightTestErrorForm.Designer.cs">
+      <DependentUpon>FlightTestErrorForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Helpers\BridgeDbHelper.cs" />
+    <Compile Include="Helpers\BridgeLogArchiveService.cs" />
+    <Compile Include="Helpers\BridgeLogClient.cs" />
+    <Compile Include="Helpers\BridgeExcelReportHelper.cs" />
+    <Compile Include="Helpers\ExcelReportHelper.cs" />
+    <Compile Include="Helpers\FaultDescriptionHelper.cs" />
+    <Compile Include="Helpers\NonConformityLabelHelper.cs" />
+    <Compile Include="Helpers\LocalSecretProtector.cs" />
+    <Compile Include="Helpers\ObsConfig.cs" />
+    <Compile Include="Helpers\ObsWebSocketHelper.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="Froms\AutoTestingForm.resx">
+      <DependentUpon>AutoTestingForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Froms\AutoTestRowControl.resx">
+      <DependentUpon>AutoTestRowControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Froms\CrossPlateTestingPanel.resx">
+      <DependentUpon>CrossPlateTestingPanel.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Froms\BridgeLogForm.resx">
+      <DependentUpon>BridgeLogForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Froms\EmployeeForm.resx">
+      <DependentUpon>EmployeeForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Froms\ExportExcelOptionsForm.resx">
+      <DependentUpon>ExportExcelOptionsForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Froms\FlightTestErrorForm.resx">
+      <DependentUpon>FlightTestErrorForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Froms\WarehouseForm.resx">
+      <DependentUpon>WarehouseForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <EntityDeploy Include="Entity\Model1.edmx">
+      <Generator>EntityModelCodeGenerator</Generator>
+      <LastGenOutput>Model1.Designer.cs</LastGenOutput>
+    </EntityDeploy>
+    <None Include="Entity\Model1.edmx.diagram">
+      <DependentUpon>Model1.edmx</DependentUpon>
+    </None>
+    <None Include="packages.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Include="Parameters\ArduCopterCommon.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Entity\Model1.Context.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <DependentUpon>Model1.edmx</DependentUpon>
+      <LastGenOutput>Model1.Context.cs</LastGenOutput>
+    </Content>
+    <Content Include="Entity\Model1.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <DependentUpon>Model1.edmx</DependentUpon>
+      <LastGenOutput>Model1.cs</LastGenOutput>
+    </Content>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>Данный проект ссылается на пакеты NuGet, отсутствующие на этом компьютере. Используйте восстановление пакетов NuGet, чтобы скачать их.  Дополнительную информацию см. по адресу: http://go.microsoft.com/fwlink/?LinkID=322105. Отсутствует следующий файл: {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\EntityFramework.6.5.1\build\EntityFramework.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\EntityFramework.6.5.1\build\EntityFramework.props'))" />
+    <Error Condition="!Exists('..\packages\EntityFramework.6.5.1\build\EntityFramework.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\EntityFramework.6.5.1\build\EntityFramework.targets'))" />
+  </Target>
+  <Import Project="..\packages\EntityFramework.6.5.1\build\EntityFramework.targets" Condition="Exists('..\packages\EntityFramework.6.5.1\build\EntityFramework.targets')" />
+</Project>
