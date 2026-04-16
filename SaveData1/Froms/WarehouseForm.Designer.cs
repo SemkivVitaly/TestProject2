@@ -42,6 +42,12 @@ namespace SaveData1
             this.cmbCountry = new System.Windows.Forms.ComboBox();
             this.btnAddCategory = new System.Windows.Forms.Button();
             this.tabActs = new System.Windows.Forms.TabPage();
+            this.tabPostTesting = new System.Windows.Forms.TabPage();
+            this.dgvPostTesting = new System.Windows.Forms.DataGridView();
+            this.panelPostTestingTop = new System.Windows.Forms.Panel();
+            this.btnPostTestingRefresh = new System.Windows.Forms.Button();
+            this.txtPostTestingSearch = new System.Windows.Forms.TextBox();
+            this.lblPostTestingSearch = new System.Windows.Forms.Label();
             this.btnNonConformityInAct = new System.Windows.Forms.Button();
             this.btnAssignToAct = new System.Windows.Forms.Button();
             this.btnGenerateActQr = new System.Windows.Forms.Button();
@@ -65,6 +71,9 @@ namespace SaveData1
             this.grpProduct.SuspendLayout();
             this.grpCategory.SuspendLayout();
             this.tabActs.SuspendLayout();
+            this.tabPostTesting.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvPostTesting)).BeginInit();
+            this.panelPostTestingTop.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvUnassignedProducts)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvProductsInAct)).BeginInit();
             this.grpAct.SuspendLayout();
@@ -75,6 +84,7 @@ namespace SaveData1
             // 
             this.tabControl.Controls.Add(this.tabProducts);
             this.tabControl.Controls.Add(this.tabActs);
+            this.tabControl.Controls.Add(this.tabPostTesting);
             this.tabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.tabControl.Location = new System.Drawing.Point(0, 35);
@@ -343,6 +353,69 @@ namespace SaveData1
             this.tabActs.Text = "Акты (Отгрузка)";
             this.tabActs.UseVisualStyleBackColor = true;
             // 
+            // tabPostTesting
+            // 
+            this.tabPostTesting.Controls.Add(this.dgvPostTesting);
+            this.tabPostTesting.Controls.Add(this.panelPostTestingTop);
+            this.tabPostTesting.Location = new System.Drawing.Point(4, 26);
+            this.tabPostTesting.Name = "tabPostTesting";
+            this.tabPostTesting.Padding = new System.Windows.Forms.Padding(10);
+            this.tabPostTesting.Size = new System.Drawing.Size(892, 535);
+            this.tabPostTesting.TabIndex = 2;
+            this.tabPostTesting.Text = "После тестирования";
+            this.tabPostTesting.UseVisualStyleBackColor = true;
+            // 
+            // dgvPostTesting
+            // 
+            this.dgvPostTesting.AllowUserToAddRows = false;
+            this.dgvPostTesting.AllowUserToDeleteRows = false;
+            this.dgvPostTesting.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.dgvPostTesting.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvPostTesting.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.dgvPostTesting.Location = new System.Drawing.Point(10, 50);
+            this.dgvPostTesting.Name = "dgvPostTesting";
+            this.dgvPostTesting.ReadOnly = true;
+            this.dgvPostTesting.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            this.dgvPostTesting.Size = new System.Drawing.Size(872, 475);
+            this.dgvPostTesting.TabIndex = 1;
+            // 
+            // panelPostTestingTop
+            // 
+            this.panelPostTestingTop.Controls.Add(this.btnPostTestingRefresh);
+            this.panelPostTestingTop.Controls.Add(this.txtPostTestingSearch);
+            this.panelPostTestingTop.Controls.Add(this.lblPostTestingSearch);
+            this.panelPostTestingTop.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panelPostTestingTop.Location = new System.Drawing.Point(10, 10);
+            this.panelPostTestingTop.Name = "panelPostTestingTop";
+            this.panelPostTestingTop.Size = new System.Drawing.Size(872, 40);
+            this.panelPostTestingTop.TabIndex = 0;
+            // 
+            // lblPostTestingSearch
+            // 
+            this.lblPostTestingSearch.AutoSize = true;
+            this.lblPostTestingSearch.Location = new System.Drawing.Point(3, 12);
+            this.lblPostTestingSearch.Name = "lblPostTestingSearch";
+            this.lblPostTestingSearch.Size = new System.Drawing.Size(45, 19);
+            this.lblPostTestingSearch.TabIndex = 0;
+            this.lblPostTestingSearch.Text = "Поиск:";
+            // 
+            // txtPostTestingSearch
+            // 
+            this.txtPostTestingSearch.Location = new System.Drawing.Point(54, 8);
+            this.txtPostTestingSearch.Name = "txtPostTestingSearch";
+            this.txtPostTestingSearch.Size = new System.Drawing.Size(280, 25);
+            this.txtPostTestingSearch.TabIndex = 1;
+            // 
+            // btnPostTestingRefresh
+            // 
+            this.btnPostTestingRefresh.Location = new System.Drawing.Point(350, 6);
+            this.btnPostTestingRefresh.Name = "btnPostTestingRefresh";
+            this.btnPostTestingRefresh.Size = new System.Drawing.Size(100, 28);
+            this.btnPostTestingRefresh.TabIndex = 2;
+            this.btnPostTestingRefresh.Text = "Обновить";
+            this.btnPostTestingRefresh.UseVisualStyleBackColor = true;
+            this.btnPostTestingRefresh.Click += new System.EventHandler(this.btnPostTestingRefresh_Click);
+            // 
             // btnNonConformityInAct
             // 
             this.btnNonConformityInAct.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
@@ -534,6 +607,10 @@ namespace SaveData1
             this.grpCategory.PerformLayout();
             this.tabActs.ResumeLayout(false);
             this.tabActs.PerformLayout();
+            this.tabPostTesting.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.dgvPostTesting)).EndInit();
+            this.panelPostTestingTop.ResumeLayout(false);
+            this.panelPostTestingTop.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvUnassignedProducts)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvProductsInAct)).EndInit();
             this.grpAct.ResumeLayout(false);
@@ -548,6 +625,12 @@ namespace SaveData1
         private System.Windows.Forms.TabControl tabControl;
         private System.Windows.Forms.TabPage tabProducts;
         private System.Windows.Forms.TabPage tabActs;
+        private System.Windows.Forms.TabPage tabPostTesting;
+        private System.Windows.Forms.DataGridView dgvPostTesting;
+        private System.Windows.Forms.Panel panelPostTestingTop;
+        private System.Windows.Forms.Label lblPostTestingSearch;
+        private System.Windows.Forms.TextBox txtPostTestingSearch;
+        private System.Windows.Forms.Button btnPostTestingRefresh;
 
         private System.Windows.Forms.GroupBox grpCategory;
         private System.Windows.Forms.Label lblNewCategory;

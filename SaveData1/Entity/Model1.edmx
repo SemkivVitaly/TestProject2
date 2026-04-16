@@ -1,10 +1,10 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <edmx:Edmx Version="3.0" xmlns:edmx="http://schemas.microsoft.com/ado/2009/11/edmx">
   <!-- EF Runtime content -->
   <edmx:Runtime>
     <!-- SSDL content -->
     <edmx:StorageModels>
-    <Schema Namespace="Хранилище SaveDataModel" Provider="System.Data.SqlClient" ProviderManifestToken="2012" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
+      <Schema Namespace="Хранилище SaveDataModel" Provider="System.Data.SqlClient" ProviderManifestToken="2012" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
         <EntityType Name="Act">
           <Key>
             <PropertyRef Name="ActID" />
@@ -100,6 +100,15 @@
           <Property Name="ProductSerial" Type="nvarchar" MaxLength="50" Nullable="false" />
           <Property Name="ActID" Type="int" />
           <Property Name="TypeID" Type="int" Nullable="false" />
+          <Property Name="QualityControlPassed" Type="bit" Nullable="false" />
+          <Property Name="QualityControlPassedUtc" Type="datetime2" Precision="7" />
+          <Property Name="QualityControlByUserID" Type="int" />
+          <Property Name="PostTestingWarehouseAt" Type="datetime2" Precision="7" />
+          <Property Name="PostTestingWarehouseByUserID" Type="int" />
+          <Property Name="TestingManualUnlockByUserID" Type="int" />
+          <Property Name="TestingManualUnlockUtc" Type="datetime2" Precision="7" />
+          <Property Name="AssemblyManualUnlockByUserID" Type="int" />
+          <Property Name="AssemblyManualUnlockUtc" Type="datetime2" Precision="7" />
         </EntityType>
         <EntityType Name="ProducType">
           <Key>
@@ -418,6 +427,18 @@
             </Dependent>
           </ReferentialConstraint>
         </Association>
+        <Association Name="FK_Product_PostTestingWarehouseByUser_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="0..1" />
+          <End Role="Product" Type="Self.Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="PostTestingWarehouseByUserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
         <Association Name="FK_Product_ProducType">
           <End Role="ProducType" Type="Self.ProducType" Multiplicity="1" />
           <End Role="Product" Type="Self.Product" Multiplicity="*" />
@@ -427,6 +448,30 @@
             </Principal>
             <Dependent Role="Product">
               <PropertyRef Name="TypeID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Product_QualityControlByUser_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="0..1" />
+          <End Role="Product" Type="Self.Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="QualityControlByUserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Product_TestingManualUnlockByUser_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="0..1" />
+          <End Role="Product" Type="Self.Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="TestingManualUnlockByUserID" />
             </Dependent>
           </ReferentialConstraint>
         </Association>
@@ -740,8 +785,20 @@
             <End Role="Act" EntitySet="Act" />
             <End Role="Product" EntitySet="Product" />
           </AssociationSet>
+          <AssociationSet Name="FK_Product_PostTestingWarehouseByUser_UsersProfile" Association="Self.FK_Product_PostTestingWarehouseByUser_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
           <AssociationSet Name="FK_Product_ProducType" Association="Self.FK_Product_ProducType">
             <End Role="ProducType" EntitySet="ProducType" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Product_QualityControlByUser_UsersProfile" Association="Self.FK_Product_QualityControlByUser_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Product_TestingManualUnlockByUser_UsersProfile" Association="Self.FK_Product_TestingManualUnlockByUser_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
             <End Role="Product" EntitySet="Product" />
           </AssociationSet>
           <AssociationSet Name="FK_ProducType_Country" Association="Self.FK_ProducType_Country">
@@ -809,7 +866,8 @@
             <End Role="UserWithPermissions" EntitySet="UserWithPermissions" />
           </AssociationSet>
         </EntityContainer>
-      </Schema></edmx:StorageModels>
+      </Schema>
+    </edmx:StorageModels>
     <!-- CSDL content -->
     <edmx:ConceptualModels>
       <Schema Namespace="SaveDataModel" Alias="Self" annotation:UseStrongSpatialTypes="false" xmlns:annotation="http://schemas.microsoft.com/ado/2009/02/edm/annotation" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm">
@@ -820,8 +878,23 @@
           <Property Name="ActID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
           <Property Name="ActNumber" Type="String" MaxLength="6" FixedLength="false" Unicode="true" Nullable="false" />
           <Property Name="IsReady" Type="Boolean" Nullable="false" />
+          <NavigationProperty Name="BridgeLogSave" Relationship="Self.FK_BridgeLogSave_Act" FromRole="Act" ToRole="BridgeLogSave" />
           <NavigationProperty Name="Product" Relationship="Self.FK_Product_Act" FromRole="Act" ToRole="Product" />
-          <NavigationProperty Name="BridgeLogSave" Relationship="SaveDataModel.FK_BridgeLogSave_Act" FromRole="Act" ToRole="BridgeLogSave" />
+        </EntityType>
+        <EntityType Name="BridgeLogSave">
+          <Key>
+            <PropertyRef Name="BridgeLogSaveID" />
+          </Key>
+          <Property Name="BridgeLogSaveID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="ActID" Type="Int32" Nullable="false" />
+          <Property Name="UserID" Type="Int32" Nullable="false" />
+          <Property Name="SerialNumber" Type="String" MaxLength="120" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="SavedUtc" Type="DateTime" Nullable="false" Precision="7" />
+          <Property Name="UnifiedLogText" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <Property Name="StatusJson" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <Property Name="MavlinkJson" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <NavigationProperty Name="Act" Relationship="Self.FK_BridgeLogSave_Act" FromRole="BridgeLogSave" ToRole="Act" />
+          <NavigationProperty Name="UsersProfile" Relationship="Self.FK_BridgeLogSave_UsersProfile" FromRole="BridgeLogSave" ToRole="UsersProfile" />
         </EntityType>
         <EntityType Name="Country">
           <Key>
@@ -900,9 +973,21 @@
           <Property Name="ProductSerial" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
           <Property Name="ActID" Type="Int32" />
           <Property Name="TypeID" Type="Int32" Nullable="false" />
+          <Property Name="QualityControlPassed" Type="Boolean" Nullable="false" />
+          <Property Name="QualityControlPassedUtc" Type="DateTime" Precision="7" />
+          <Property Name="QualityControlByUserID" Type="Int32" />
+          <Property Name="PostTestingWarehouseAt" Type="DateTime" Precision="7" />
+          <Property Name="PostTestingWarehouseByUserID" Type="Int32" />
+          <Property Name="TestingManualUnlockByUserID" Type="Int32" />
+          <Property Name="TestingManualUnlockUtc" Type="DateTime" Precision="7" />
+          <Property Name="AssemblyManualUnlockByUserID" Type="Int32" />
+          <Property Name="AssemblyManualUnlockUtc" Type="DateTime" Precision="7" />
           <NavigationProperty Name="Act" Relationship="Self.FK_Product_Act" FromRole="Product" ToRole="Act" />
           <NavigationProperty Name="Error" Relationship="Self.FK_Error_Product" FromRole="Product" ToRole="Error" />
+          <NavigationProperty Name="UsersProfile" Relationship="Self.FK_Product_PostTestingWarehouseByUser_UsersProfile" FromRole="Product" ToRole="UsersProfile" />
           <NavigationProperty Name="ProducType" Relationship="Self.FK_Product_ProducType" FromRole="Product" ToRole="ProducType" />
+          <NavigationProperty Name="UsersProfile1" Relationship="Self.FK_Product_QualityControlByUser_UsersProfile" FromRole="Product" ToRole="UsersProfile" />
+          <NavigationProperty Name="UsersProfile2" Relationship="Self.FK_Product_TestingManualUnlockByUser_UsersProfile" FromRole="Product" ToRole="UsersProfile" />
           <NavigationProperty Name="TechnicalMapFull" Relationship="Self.FK_TechnicalMapFull_Product" FromRole="Product" ToRole="TechnicalMapFull" />
           <NavigationProperty Name="TechnicalMatFlight" Relationship="Self.FK_TechnicalMatFlight_Product" FromRole="Product" ToRole="TechnicalMatFlight" />
         </EntityType>
@@ -1043,13 +1128,16 @@
           <Property Name="UserLogin" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
           <Property Name="UserPassword" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" Nullable="false" />
           <Property Name="RoleID" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="BridgeLogSave" Relationship="Self.FK_BridgeLogSave_UsersProfile" FromRole="UsersProfile" ToRole="BridgeLogSave" />
           <NavigationProperty Name="Inspection" Relationship="Self.FK_Inspection_UsersProfile" FromRole="UsersProfile" ToRole="Inspection" />
+          <NavigationProperty Name="Product" Relationship="Self.FK_Product_PostTestingWarehouseByUser_UsersProfile" FromRole="UsersProfile" ToRole="Product" />
+          <NavigationProperty Name="Product1" Relationship="Self.FK_Product_QualityControlByUser_UsersProfile" FromRole="UsersProfile" ToRole="Product" />
+          <NavigationProperty Name="Product2" Relationship="Self.FK_Product_TestingManualUnlockByUser_UsersProfile" FromRole="UsersProfile" ToRole="Product" />
           <NavigationProperty Name="Role" Relationship="Self.FK_UsersProfile_Role1" FromRole="UsersProfile" ToRole="Role" />
           <NavigationProperty Name="TechnicalMapAssembly" Relationship="Self.FK_TechnicalMapAssembly_UsersProfile" FromRole="UsersProfile" ToRole="TechnicalMapAssembly" />
           <NavigationProperty Name="TechnicalMapTesting" Relationship="Self.FK_TechnicalMapTesting_UsersProfile" FromRole="UsersProfile" ToRole="TechnicalMapTesting" />
           <NavigationProperty Name="TechnicalMatFlight" Relationship="Self.FK_TechnicalMatFlight_UsersProfile" FromRole="UsersProfile" ToRole="TechnicalMatFlight" />
           <NavigationProperty Name="UserWithPermissions" Relationship="Self.FK_UserWithPermissions_UsersProfile" FromRole="UsersProfile" ToRole="UserWithPermissions" />
-          <NavigationProperty Name="BridgeLogSave" Relationship="SaveDataModel.FK_BridgeLogSave_UsersProfile" FromRole="UsersProfile" ToRole="BridgeLogSave" />
         </EntityType>
         <EntityType Name="UserWithPermissions">
           <Key>
@@ -1061,6 +1149,18 @@
           <NavigationProperty Name="Permissions" Relationship="Self.FK_UserWithPermissions_Permissions" FromRole="UserWithPermissions" ToRole="Permissions" />
           <NavigationProperty Name="UsersProfile" Relationship="Self.FK_UserWithPermissions_UsersProfile" FromRole="UserWithPermissions" ToRole="UsersProfile" />
         </EntityType>
+        <Association Name="FK_BridgeLogSave_Act">
+          <End Role="Act" Type="Self.Act" Multiplicity="1" />
+          <End Role="BridgeLogSave" Type="Self.BridgeLogSave" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Act">
+              <PropertyRef Name="ActID" />
+            </Principal>
+            <Dependent Role="BridgeLogSave">
+              <PropertyRef Name="ActID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
         <Association Name="FK_Product_Act">
           <End Role="Act" Type="Self.Act" Multiplicity="0..1" />
           <End Role="Product" Type="Self.Product" Multiplicity="*" />
@@ -1070,6 +1170,18 @@
             </Principal>
             <Dependent Role="Product">
               <PropertyRef Name="ActID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_BridgeLogSave_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="BridgeLogSave" Type="Self.BridgeLogSave" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="BridgeLogSave">
+              <PropertyRef Name="UserID" />
             </Dependent>
           </ReferentialConstraint>
         </Association>
@@ -1217,6 +1329,18 @@
             </Dependent>
           </ReferentialConstraint>
         </Association>
+        <Association Name="FK_Product_PostTestingWarehouseByUser_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="0..1" />
+          <End Role="Product" Type="Self.Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="PostTestingWarehouseByUserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
         <Association Name="FK_Product_ProducType">
           <End Role="ProducType" Type="Self.ProducType" Multiplicity="1" />
           <End Role="Product" Type="Self.Product" Multiplicity="*" />
@@ -1226,6 +1350,30 @@
             </Principal>
             <Dependent Role="Product">
               <PropertyRef Name="TypeID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Product_QualityControlByUser_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="0..1" />
+          <End Role="Product" Type="Self.Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="QualityControlByUserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_Product_TestingManualUnlockByUser_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="0..1" />
+          <End Role="Product" Type="Self.Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="TestingManualUnlockByUserID" />
             </Dependent>
           </ReferentialConstraint>
         </Association>
@@ -1363,6 +1511,7 @@
         </Association>
         <EntityContainer Name="SaveDataEntities2" annotation:LazyLoadingEnabled="true">
           <EntitySet Name="Act" EntityType="Self.Act" />
+          <EntitySet Name="BridgeLogSave" EntityType="Self.BridgeLogSave" />
           <EntitySet Name="Country" EntityType="Self.Country" />
           <EntitySet Name="Description" EntityType="Self.Description" />
           <EntitySet Name="Error" EntityType="Self.Error" />
@@ -1382,9 +1531,17 @@
           <EntitySet Name="TestFlight" EntityType="Self.TestFlight" />
           <EntitySet Name="UsersProfile" EntityType="Self.UsersProfile" />
           <EntitySet Name="UserWithPermissions" EntityType="Self.UserWithPermissions" />
+          <AssociationSet Name="FK_BridgeLogSave_Act" Association="Self.FK_BridgeLogSave_Act">
+            <End Role="Act" EntitySet="Act" />
+            <End Role="BridgeLogSave" EntitySet="BridgeLogSave" />
+          </AssociationSet>
           <AssociationSet Name="FK_Product_Act" Association="Self.FK_Product_Act">
             <End Role="Act" EntitySet="Act" />
             <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
+          <AssociationSet Name="FK_BridgeLogSave_UsersProfile" Association="Self.FK_BridgeLogSave_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="BridgeLogSave" EntitySet="BridgeLogSave" />
           </AssociationSet>
           <AssociationSet Name="FK_ProducType_Country" Association="Self.FK_ProducType_Country">
             <End Role="Country" EntitySet="Country" />
@@ -1434,8 +1591,20 @@
             <End Role="Permissions" EntitySet="Permissions" />
             <End Role="UserWithPermissions" EntitySet="UserWithPermissions" />
           </AssociationSet>
+          <AssociationSet Name="FK_Product_PostTestingWarehouseByUser_UsersProfile" Association="Self.FK_Product_PostTestingWarehouseByUser_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
           <AssociationSet Name="FK_Product_ProducType" Association="Self.FK_Product_ProducType">
             <End Role="ProducType" EntitySet="ProducType" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Product_QualityControlByUser_UsersProfile" Association="Self.FK_Product_QualityControlByUser_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
+          <AssociationSet Name="FK_Product_TestingManualUnlockByUser_UsersProfile" Association="Self.FK_Product_TestingManualUnlockByUser_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
             <End Role="Product" EntitySet="Product" />
           </AssociationSet>
           <AssociationSet Name="FK_TechnicalMapFull_Product" Association="Self.FK_TechnicalMapFull_Product">
@@ -1520,15 +1689,6 @@
             <Parameter Name="new_diagramname" Mode="In" Type="String" />
           </FunctionImport>
           <FunctionImport Name="sp_upgraddiagrams" />
-          <EntitySet Name="BridgeLogSave" EntityType="SaveDataModel.BridgeLogSave" />
-          <AssociationSet Name="FK_BridgeLogSave_Act" Association="SaveDataModel.FK_BridgeLogSave_Act">
-            <End Role="Act" EntitySet="Act" />
-            <End Role="BridgeLogSave" EntitySet="BridgeLogSave" />
-          </AssociationSet>
-          <AssociationSet Name="FK_BridgeLogSave_UsersProfile" Association="SaveDataModel.FK_BridgeLogSave_UsersProfile">
-            <End Role="UsersProfile" EntitySet="UsersProfile" />
-            <End Role="BridgeLogSave" EntitySet="BridgeLogSave" />
-          </AssociationSet>
         </EntityContainer>
         <ComplexType Name="sp_helpdiagramdefinition_Result">
           <Property Type="Int32" Name="version" Nullable="true" />
@@ -1541,45 +1701,6 @@
           <Property Type="String" Name="Owner" Nullable="true" MaxLength="128" />
           <Property Type="Int32" Name="OwnerID" Nullable="false" />
         </ComplexType>
-        <EntityType Name="BridgeLogSave">
-          <Key>
-            <PropertyRef Name="BridgeLogSaveID" />
-          </Key>
-          <Property Name="BridgeLogSaveID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
-          <Property Name="ActID" Type="Int32" Nullable="false" />
-          <Property Name="UserID" Type="Int32" Nullable="false" />
-          <Property Name="SerialNumber" Type="String" Nullable="false" MaxLength="120" FixedLength="false" Unicode="true" />
-          <Property Name="SavedUtc" Type="DateTime" Nullable="false" Precision="7" />
-          <Property Name="UnifiedLogText" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
-          <Property Name="StatusJson" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
-          <Property Name="MavlinkJson" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
-          <NavigationProperty Name="Act" Relationship="SaveDataModel.FK_BridgeLogSave_Act" FromRole="BridgeLogSave" ToRole="Act" />
-          <NavigationProperty Name="UsersProfile" Relationship="SaveDataModel.FK_BridgeLogSave_UsersProfile" FromRole="BridgeLogSave" ToRole="UsersProfile" />
-        </EntityType>
-        <Association Name="FK_BridgeLogSave_Act">
-          <End Type="SaveDataModel.Act" Role="Act" Multiplicity="1" />
-          <End Type="SaveDataModel.BridgeLogSave" Role="BridgeLogSave" Multiplicity="*" />
-          <ReferentialConstraint>
-            <Principal Role="Act">
-              <PropertyRef Name="ActID" />
-            </Principal>
-            <Dependent Role="BridgeLogSave">
-              <PropertyRef Name="ActID" />
-            </Dependent>
-          </ReferentialConstraint>
-        </Association>
-        <Association Name="FK_BridgeLogSave_UsersProfile">
-          <End Type="SaveDataModel.UsersProfile" Role="UsersProfile" Multiplicity="1" />
-          <End Type="SaveDataModel.BridgeLogSave" Role="BridgeLogSave" Multiplicity="*" />
-          <ReferentialConstraint>
-            <Principal Role="UsersProfile">
-              <PropertyRef Name="UserID" />
-            </Principal>
-            <Dependent Role="BridgeLogSave">
-              <PropertyRef Name="UserID" />
-            </Dependent>
-          </ReferentialConstraint>
-        </Association>
       </Schema>
     </edmx:ConceptualModels>
     <!-- C-S mapping content -->
@@ -1592,6 +1713,20 @@
                 <ScalarProperty Name="ActID" ColumnName="ActID" />
                 <ScalarProperty Name="ActNumber" ColumnName="ActNumber" />
                 <ScalarProperty Name="IsReady" ColumnName="IsReady" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="BridgeLogSave">
+            <EntityTypeMapping TypeName="SaveDataModel.BridgeLogSave">
+              <MappingFragment StoreEntitySet="BridgeLogSave">
+                <ScalarProperty Name="BridgeLogSaveID" ColumnName="BridgeLogSaveID" />
+                <ScalarProperty Name="ActID" ColumnName="ActID" />
+                <ScalarProperty Name="UserID" ColumnName="UserID" />
+                <ScalarProperty Name="SerialNumber" ColumnName="SerialNumber" />
+                <ScalarProperty Name="SavedUtc" ColumnName="SavedUtc" />
+                <ScalarProperty Name="UnifiedLogText" ColumnName="UnifiedLogText" />
+                <ScalarProperty Name="StatusJson" ColumnName="StatusJson" />
+                <ScalarProperty Name="MavlinkJson" ColumnName="MavlinkJson" />
               </MappingFragment>
             </EntityTypeMapping>
           </EntitySetMapping>
@@ -1658,6 +1793,15 @@
                 <ScalarProperty Name="ProductSerial" ColumnName="ProductSerial" />
                 <ScalarProperty Name="ActID" ColumnName="ActID" />
                 <ScalarProperty Name="TypeID" ColumnName="TypeID" />
+                <ScalarProperty Name="QualityControlPassed" ColumnName="QualityControlPassed" />
+                <ScalarProperty Name="QualityControlPassedUtc" ColumnName="QualityControlPassedUtc" />
+                <ScalarProperty Name="QualityControlByUserID" ColumnName="QualityControlByUserID" />
+                <ScalarProperty Name="PostTestingWarehouseAt" ColumnName="PostTestingWarehouseAt" />
+                <ScalarProperty Name="PostTestingWarehouseByUserID" ColumnName="PostTestingWarehouseByUserID" />
+                <ScalarProperty Name="TestingManualUnlockByUserID" ColumnName="TestingManualUnlockByUserID" />
+                <ScalarProperty Name="TestingManualUnlockUtc" ColumnName="TestingManualUnlockUtc" />
+                <ScalarProperty Name="AssemblyManualUnlockByUserID" ColumnName="AssemblyManualUnlockByUserID" />
+                <ScalarProperty Name="AssemblyManualUnlockUtc" ColumnName="AssemblyManualUnlockUtc" />
               </MappingFragment>
             </EntityTypeMapping>
           </EntitySetMapping>
@@ -1846,20 +1990,6 @@
           </FunctionImportMapping>
           <FunctionImportMapping FunctionImportName="sp_renamediagram" FunctionName="Хранилище SaveDataModel.sp_renamediagram" />
           <FunctionImportMapping FunctionImportName="sp_upgraddiagrams" FunctionName="Хранилище SaveDataModel.sp_upgraddiagrams" />
-          <EntitySetMapping Name="BridgeLogSave">
-            <EntityTypeMapping TypeName="SaveDataModel.BridgeLogSave">
-              <MappingFragment StoreEntitySet="BridgeLogSave">
-                <ScalarProperty Name="MavlinkJson" ColumnName="MavlinkJson" />
-                <ScalarProperty Name="StatusJson" ColumnName="StatusJson" />
-                <ScalarProperty Name="UnifiedLogText" ColumnName="UnifiedLogText" />
-                <ScalarProperty Name="SavedUtc" ColumnName="SavedUtc" />
-                <ScalarProperty Name="SerialNumber" ColumnName="SerialNumber" />
-                <ScalarProperty Name="UserID" ColumnName="UserID" />
-                <ScalarProperty Name="ActID" ColumnName="ActID" />
-                <ScalarProperty Name="BridgeLogSaveID" ColumnName="BridgeLogSaveID" />
-              </MappingFragment>
-            </EntityTypeMapping>
-          </EntitySetMapping>
         </EntityContainerMapping>
       </Mapping>
     </edmx:Mappings>

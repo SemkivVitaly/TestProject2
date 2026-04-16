@@ -53,6 +53,7 @@ namespace SaveData1
             AttachProductGridContextMenu(dgvProducts, LoadProducts);
             AttachProductGridContextMenu(dgvProductsInAct, () => { LoadProductsInAct(); LoadProducts(); });
             AttachProductGridContextMenu(dgvUnassignedProducts, () => { LoadUnassignedProducts(); LoadProducts(); });
+            AttachProductGridContextMenu(dgvPostTesting, LoadPostTestingProducts);
 
             CreateActActionButtons();
 
@@ -570,6 +571,60 @@ namespace SaveData1
                 LoadUnassignedProducts();
                 LoadProductsInAct();
             }
+            else if (tabControl.SelectedTab == tabPostTesting)
+            {
+                LoadPostTestingProducts();
+            }
+        }
+
+        private void btnPostTestingRefresh_Click(object sender, EventArgs e)
+        {
+            LoadPostTestingProducts();
+        }
+
+        /// <summary>Продукты, переданные на склад после тестирования и контроля.</summary>
+        private void LoadPostTestingProducts()
+        {
+            try
+            {
+                string search = (txtPostTestingSearch?.Text ?? "").Trim().ToLowerInvariant();
+                using (var context = ConnectionHelper.CreateContext())
+                {
+                    var q = context.Product.AsNoTracking()
+                        .Include(p => p.ProducType)
+                        .Include(p => p.Act)
+                        .Where(p => p.PostTestingWarehouseAt != null);
+                    if (!string.IsNullOrEmpty(search))
+                    {
+                        q = q.Where(p =>
+                            (p.ProductSerial != null && p.ProductSerial.ToLower().Contains(search)) ||
+                            (p.ProducType != null && p.ProducType.TypeName != null && p.ProducType.TypeName.ToLower().Contains(search)) ||
+                            (p.Act != null && p.Act.ActNumber != null && p.Act.ActNumber.ToLower().Contains(search)));
+                    }
+
+                    var list = q.OrderByDescending(p => p.PostTestingWarehouseAt)
+                        .Select(p => new
+                        {
+                            p.ProductID,
+                            SerialNumber = p.ProductSerial,
+                            Category = p.ProducType != null ? p.ProducType.TypeName : "",
+                            Act = p.Act != null ? p.Act.ActNumber : "—",
+                            Передано = p.PostTestingWarehouseAt
+                        })
+                        .ToList();
+
+                    dgvPostTesting.DataSource = list;
+                    if (dgvPostTesting.Columns.Contains("ProductID")) dgvPostTesting.Columns["ProductID"].Visible = false;
+                    if (dgvPostTesting.Columns.Contains("SerialNumber")) dgvPostTesting.Columns["SerialNumber"].HeaderText = "Серийный номер";
+                    if (dgvPostTesting.Columns.Contains("Category")) dgvPostTesting.Columns["Category"].HeaderText = "Категория";
+                    if (dgvPostTesting.Columns.Contains("Act")) dgvPostTesting.Columns["Act"].HeaderText = "Акт";
+                    if (dgvPostTesting.Columns.Contains("Передано")) dgvPostTesting.Columns["Передано"].HeaderText = "Передано на склад (UTC)";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка загрузки: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void cmbActs_SelectedIndexChanged(object sender, EventArgs e)
@@ -611,7 +666,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки продуктов акта: " + ex.Message, "Ошибка",
+                MessageBox.Show("Ошибка загрузки продуктов акта: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -714,6 +769,7 @@ namespace SaveData1
                         .AsNoTracking()
                         .Include(p => p.ProducType)
                         .Include(p => p.Act)
+                        .Where(p => p.Act == null || !p.Act.IsReady)
                         .AsQueryable();
 
                     if (!string.IsNullOrWhiteSpace(_searchText))
@@ -751,7 +807,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки продуктов: " + ex.Message, "Ошибка",
+                MessageBox.Show("Ошибка загрузки продуктов: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -802,7 +858,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки продуктов: " + ex.Message, "Ошибка",
+                MessageBox.Show("Ошибка загрузки продуктов: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1134,44 +1190,13 @@ namespace SaveData1
 
             string actNumber = selectedAct.ActNumber;
 
-            string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Template.docx");
+            if (!QrActWordDocumentService.TryEnsureQrTemplateExists(this))
+                return;
 
-            if (!File.Exists(templatePath))
-            {
-                MessageBox.Show("Файл шаблона 'Template.docx' не найден в папке с программой.\n\nПожалуйста, выберите ваш файл-шаблон (Пр Godex ОБРАЗЕЦ.docx). Он будет скопирован в папку с программой для дальнейшего автоматического использования.", "Шаблон не найден", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                using (var ofd = new OpenFileDialog())
-                {
-                    ofd.Title = "Выберите файл-шаблон Word (Пр Godex ОБРАЗЕЦ.docx)";
-                    ofd.Filter = "Word Documents (*.docx)|*.docx|All Files (*.*)|*.*";
-                    if (ofd.ShowDialog() != DialogResult.OK)
-                        return;
-
-                    try
-                    {
-                        File.Copy(ofd.FileName, templatePath, true);
-                        MessageBox.Show("Шаблон успешно сохранен! Теперь он будет использоваться автоматически.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Не удалось скопировать шаблон: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return;
-                    }
-                }
-            }
-
-            string savePath = "";
-            using (var sfd = new SaveFileDialog())
-            {
-                sfd.Title = "Сохранить итоговый документ с QR-кодами как...";
-                sfd.Filter = "Word Documents (*.docx)|*.docx";
-                sfd.FileName = $"Акт_№{actNumber}_QR.docx";
-                if (sfd.ShowDialog() != DialogResult.OK)
-                    return;
-                savePath = sfd.FileName;
-            }
-
-            Microsoft.Office.Interop.Word.Application wordApp = null;
-            Microsoft.Office.Interop.Word.Document finalDoc = null;
+            string templatePath = QrActWordDocumentService.GetTemplateFullPath();
+            string savePath = QrActWordDocumentService.PromptQrOutputPath(this, actNumber);
+            if (savePath == null)
+                return;
 
             try
             {
@@ -1189,89 +1214,9 @@ namespace SaveData1
                     }
 
                     this.Cursor = Cursors.WaitCursor;
-
-                    wordApp = new Microsoft.Office.Interop.Word.Application();
-                    wordApp.Visible = false;
-                    wordApp.Options.SmartCutPaste = false;
-
-                    finalDoc = wordApp.Documents.Add(templatePath);
-                    finalDoc.Content.Copy();
-
-                    int generated = 0;
-                    for (int i = 0; i < products.Count; i++)
-                    {
-                        var product = products[i];
-                        string serial = product.ProductSerial;
-                        if (string.IsNullOrEmpty(serial))
-                            continue;
-
-                        string tempImg = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".png");
-                        QrCodeHelper.SaveQrCode(serial, tempImg);
-
-                        Microsoft.Office.Interop.Word.Range workRange;
-
-                        if (i == 0)
-                        {
-                            workRange = finalDoc.Content;
-                        }
-                        else
-                        {
-                            var pasteRange = finalDoc.Content;
-                            pasteRange.Collapse(Microsoft.Office.Interop.Word.WdCollapseDirection.wdCollapseEnd);
-
-                            pasteRange.Text = "\r";
-                            pasteRange.Collapse(Microsoft.Office.Interop.Word.WdCollapseDirection.wdCollapseEnd);
-
-                            int start = pasteRange.Start;
-                            pasteRange.Paste();
-                            int end = finalDoc.Content.End;
-                            workRange = finalDoc.Range(start, end);
-                            RemoveLeadingParagraphFromPreviousLineIfAtPageStart(finalDoc, workRange);
-                            RemoveLeadingEmptyParagraph(workRange);
-                        }
-
-                        var findObj = workRange.Find;
-                        findObj.ClearFormatting();
-                        findObj.Replacement.ClearFormatting();
-                        findObj.Execute("993", ReplaceWith: actNumber, Replace: Microsoft.Office.Interop.Word.WdReplace.wdReplaceAll);
-
-                        findObj.Execute("Серийный", ReplaceWith: serial, Replace: Microsoft.Office.Interop.Word.WdReplace.wdReplaceAll);
-
-                        var findQr = workRange.Find;
-                        findQr.ClearFormatting();
-                        findQr.Text = "QR код";
-                        if (findQr.Execute())
-                        {
-                            Microsoft.Office.Interop.Word.Range rangeQr = findQr.Parent;
-                            rangeQr.Text = "";
-                            object linkToFile = false;
-                            object saveWithDoc = true;
-                            rangeQr.InlineShapes.AddPicture(tempImg, ref linkToFile, ref saveWithDoc);
-                        }
-
-                        if (File.Exists(tempImg))
-                            File.Delete(tempImg);
-
-                        generated++;
-                    }
-
-                    try
-                    {
-                        var endRange = finalDoc.Content;
-                        endRange.Collapse(Microsoft.Office.Interop.Word.WdCollapseDirection.wdCollapseEnd);
-                        if (endRange.Start > 0)
-                        {
-                            endRange.MoveStart(Microsoft.Office.Interop.Word.WdUnits.wdCharacter, -1);
-                            string lastCh = endRange.Text ?? "";
-                            if (lastCh.Length == 1 && (lastCh[0] == '\r' || lastCh[0] == '\n' || (int)lastCh[0] == 13 || (int)lastCh[0] == 10))
-                                endRange.Text = "";
-                        }
-                    }
-                    catch { /* игнорируем ошибки при удалении последнего символа */ }
-
-                    finalDoc.SaveAs2(savePath);
-
+                    int generated = QrActWordDocumentService.GenerateActQrWordDocument(templatePath, savePath, actNumber, products);
                     this.Cursor = Cursors.Default;
+
                     MessageBox.Show(
                         "Сгенерировано QR-кодов: " + generated + " из " + products.Count + "\n" +
                         "Файл сохранен: " + savePath,
@@ -1297,62 +1242,7 @@ namespace SaveData1
             finally
             {
                 this.Cursor = Cursors.Default;
-                if (finalDoc != null)
-                {
-                    finalDoc.Close(Microsoft.Office.Interop.Word.WdSaveOptions.wdDoNotSaveChanges);
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(finalDoc);
-                }
-                if (wordApp != null)
-                {
-                    wordApp.Quit();
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(wordApp);
-                }
             }
-        }
-
-        /// <summary>Удаление ведущих символов абзаца в начале диапазона.</summary>
-        private static void RemoveLeadingEmptyParagraph(Microsoft.Office.Interop.Word.Range workRange)
-        {
-            if (workRange == null || workRange.Start >= workRange.End) return;
-            const int maxRemove = 20;
-            for (int i = 0; i < maxRemove; i++)
-            {
-                if (workRange.Start >= workRange.End) return;
-                var first = workRange.Duplicate;
-                first.Collapse(Microsoft.Office.Interop.Word.WdCollapseDirection.wdCollapseStart);
-                first.MoveEnd(Microsoft.Office.Interop.Word.WdUnits.wdCharacter, 1);
-                string t = first.Text ?? "";
-                if (t.Length != 1) return;
-                char c = t[0];
-                if (c != '\r' && c != '\n' && (int)c != 13 && (int)c != 10) return;
-                first.Text = "";
-            }
-        }
-
-        /// <summary>Корректировка разметки при вставке QR: удаление лишнего конца абзаца.</summary>
-        private static void RemoveLeadingParagraphFromPreviousLineIfAtPageStart(Microsoft.Office.Interop.Word.Document doc, Microsoft.Office.Interop.Word.Range workRange)
-        {
-            if (doc == null || workRange == null || workRange.Start <= 1 || workRange.Start >= workRange.End) return;
-            try
-            {
-                var firstChar = workRange.Duplicate;
-                firstChar.Collapse(Microsoft.Office.Interop.Word.WdCollapseDirection.wdCollapseStart);
-                firstChar.MoveEnd(Microsoft.Office.Interop.Word.WdUnits.wdCharacter, 1);
-                string firstText = firstChar.Text ?? "";
-                if (firstText.Length != 1) return;
-                char c = firstText[0];
-                if (c != '\r' && c != '\n' && (int)c != 13 && (int)c != 10) return;
-
-                var beforeRange = doc.Range(workRange.Start - 1, workRange.Start);
-                string t = beforeRange.Text ?? "";
-                if (t.Length != 1 || (t[0] != '\r' && t[0] != '\n' && (int)t[0] != 13 && (int)t[0] != 10)) return;
-                int pageAtStart = (int)workRange.Information[Microsoft.Office.Interop.Word.WdInformation.wdActiveEndPageNumber];
-                var prevRange = doc.Range(workRange.Start - 1, workRange.Start - 1);
-                int pageBefore = (int)prevRange.Information[Microsoft.Office.Interop.Word.WdInformation.wdActiveEndPageNumber];
-                if (pageAtStart > pageBefore) return;
-                beforeRange.Text = "";
-            }
-            catch { /* игнорируем ошибки */ }
         }
 
         private void btnAssignToAct_Click(object sender, EventArgs e)

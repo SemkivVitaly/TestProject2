@@ -26,11 +26,23 @@ namespace SaveData1.Entity
         public string ProductSerial { get; set; }
         public Nullable<int> ActID { get; set; }
         public int TypeID { get; set; }
+        public bool QualityControlPassed { get; set; }
+        public Nullable<System.DateTime> QualityControlPassedUtc { get; set; }
+        public Nullable<int> QualityControlByUserID { get; set; }
+        public Nullable<System.DateTime> PostTestingWarehouseAt { get; set; }
+        public Nullable<int> PostTestingWarehouseByUserID { get; set; }
+        public Nullable<int> TestingManualUnlockByUserID { get; set; }
+        public Nullable<System.DateTime> TestingManualUnlockUtc { get; set; }
+        public Nullable<int> AssemblyManualUnlockByUserID { get; set; }
+        public Nullable<System.DateTime> AssemblyManualUnlockUtc { get; set; }
     
         public virtual Act Act { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<Error> Error { get; set; }
+        public virtual UsersProfile UsersProfile { get; set; }
         public virtual ProducType ProducType { get; set; }
+        public virtual UsersProfile UsersProfile1 { get; set; }
+        public virtual UsersProfile UsersProfile2 { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<TechnicalMapFull> TechnicalMapFull { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]

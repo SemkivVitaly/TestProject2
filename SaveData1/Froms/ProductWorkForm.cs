@@ -26,8 +26,23 @@ namespace SaveData1
             txtCategory.Text = category ?? "";
             txtFIO.Text = fio ?? "";
             dtpDate.Value = date.Date;
-            dtpTimeStart.Value = DateTime.Today + timeStart;
-            dtpTimeEnd.Value = DateTime.Today + timeEnd;
+
+            if (timeStart == TimeSpan.Zero)
+            {
+                dtpTimeStart.Value = DateTime.Today + DateTime.Now.TimeOfDay;
+                dtpTimeStart.Enabled = false;
+            }
+            else
+            {
+                dtpTimeStart.Value = DateTime.Today + timeStart;
+            }
+
+            if (timeEnd == TimeSpan.Zero)
+                dtpTimeEnd.Value = dtpTimeStart.Value;
+            else
+                dtpTimeEnd.Value = DateTime.Today + timeEnd;
+            if (dtpTimeEnd.Value.TimeOfDay < dtpTimeStart.Value.TimeOfDay)
+                dtpTimeEnd.Value = dtpTimeStart.Value;
 
             btnSoundTest.Visible = _isTesting;
 

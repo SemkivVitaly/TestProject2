@@ -28,6 +28,7 @@ namespace SaveData1
         private bool _hasAssembly;
         private bool _hasTesting;
         private bool _hasInspection;
+        private bool _hasControl;
         private WorkMode _currentWorkMode;
         /// <summary>Порядок вкладок определяет режим работы по SelectedIndex.</summary>
         private List<WorkMode> _visibleModes = new List<WorkMode>();
@@ -46,6 +47,16 @@ namespace SaveData1
         private Panel _panelActFilter;
         private ComboBox _cmbActCategory;
         private CheckBox _chkActByManufacturer;
+
+        private Panel _panelTestingScanBar;
+        private Label _lblSerialScanHint;
+        private TextBox _txtTestingSerialScan;
+        private ContextMenuStrip _ctxTestingProductAdmin;
+        private ToolStripMenuItem _miGrantTestingUnlock;
+        private ToolStripMenuItem _miRevokeTestingUnlock;
+
+        private ContextMenuStrip _ctxLstActsAdmin;
+        private ToolStripMenuItem _miLstActsResetWorkers;
 
         /// <summary>Одна строка техкарты для грида (сборка, тест или инспекция).</summary>
         public class TechnicalMapView
@@ -86,6 +97,7 @@ namespace SaveData1
             _hasAssembly = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Сборщик");
             _hasTesting = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Тестировщик");
             _hasInspection = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Инспектор");
+            _hasControl = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Контроль");
 
             this.Text = "Сотрудник — " + user.UserName;
 
@@ -103,6 +115,11 @@ namespace SaveData1
                 tabControlActions.TabPages.Remove(tabPageActionsAdmin);
             if (!_hasTesting)
                 tabControlActions.TabPages.Remove(tabPageActionsTester);
+            if (!_hasControl)
+                tabControlActions.TabPages.Remove(tabPageActionsControl);
+
+            InitTestingScanAndAdminContextMenu();
+            InitLstActsAdminContextMenu();
 
             _visibleModes.Clear();
             if (_hasAssembly) _visibleModes.Add(WorkMode.Assembly);
@@ -159,6 +176,7 @@ namespace SaveData1
             _currentWorkMode = _visibleModes[tabControlWork.SelectedIndex];
             if (_hasAdminPermission)
                 btnChangeStatus.Visible = true;
+            UpdateTestingScanBarVisibility();
             LoadProductsForSelectedAct();
         }
 
@@ -180,6 +198,7 @@ namespace SaveData1
                 LoadAdminActs();
                 LoadAdminUnassignedProducts();
                 LoadDefectStatistics();
+                LoadProductionStageStatistics();
                 AttachProductGridContextMenu(dgvNoActProducts, () => { LoadNoActProducts(); LoadAdminUnassignedProducts(); });
                 AttachProductGridContextMenu(dgvAdminUnassigned, () => { LoadAdminUnassignedProducts(); LoadNoActProducts(); });
                 if (_isAdmin)
@@ -188,6 +207,680 @@ namespace SaveData1
                     CreateAdminDataManagementTab();
                 }
             }
+        }
+
+        private void InitTestingScanAndAdminContextMenu()
+        {
+            _panelTestingScanBar = new Panel
+            {
+                Height = 28,
+                Dock = DockStyle.Bottom,
+                Visible = false,
+                Padding = new Padding(4, 2, 4, 2)
+            };
+            // Поле ввода не показываем (1×1 под подписью), но оставляем с фокусом — сканер шлёт символы в сфокусированный TextBox.
+            _txtTestingSerialScan = new ScanOnlySerialTextBox
+            {
+                Dock = DockStyle.None,
+                Size = new System.Drawing.Size(1, 1),
+                Location = new System.Drawing.Point(0, 0),
+                TabIndex = 0,
+                TabStop = true
+            };
+            _txtTestingSerialScan.KeyDown += TxtTestingSerialScan_KeyDown;
+            _lblSerialScanHint = new Label
+            {
+                Text = "Скан QR для теста (серийник + Enter):",
+                Dock = DockStyle.Fill,
+                AutoSize = false,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+            };
+            _panelTestingScanBar.Controls.Add(_txtTestingSerialScan);
+            _panelTestingScanBar.Controls.Add(_lblSerialScanHint);
+            splitContainer.Panel2.Controls.Add(_panelTestingScanBar);
+            splitContainer.Panel2.Controls.SetChildIndex(_panelTestingScanBar, splitContainer.Panel2.Controls.GetChildIndex(panelPath));
+
+            _ctxTestingProductAdmin = new ContextMenuStrip();
+            _miGrantTestingUnlock = new ToolStripMenuItem("Разрешить открытие без сканирования QR");
+            _miRevokeTestingUnlock = new ToolStripMenuItem("Снять разрешение");
+            _miGrantTestingUnlock.Click += CtxGrantTestingUnlock_Click;
+            _miRevokeTestingUnlock.Click += CtxRevokeTestingUnlock_Click;
+            _ctxTestingProductAdmin.Items.Add(_miGrantTestingUnlock);
+            _ctxTestingProductAdmin.Items.Add(_miRevokeTestingUnlock);
+            _ctxTestingProductAdmin.Opening += CtxTestingProductAdmin_Opening;
+            dgvProducts.ContextMenuStrip = _ctxTestingProductAdmin;
+        }
+
+        private void InitLstActsAdminContextMenu()
+        {
+            if (lstActs == null) return;
+            _ctxLstActsAdmin = new ContextMenuStrip();
+            _miLstActsResetWorkers = new ToolStripMenuItem("Сбросить бронь сборщика и тестировщика для акта");
+            _miLstActsResetWorkers.Click += MiLstActsResetWorkers_Click;
+            _ctxLstActsAdmin.Items.Add(_miLstActsResetWorkers);
+            _ctxLstActsAdmin.Opening += CtxLstActsAdmin_Opening;
+            lstActs.ContextMenuStrip = _ctxLstActsAdmin;
+        }
+
+        private void CtxLstActsAdmin_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (!_hasAdminPermission)
+            {
+                e.Cancel = true;
+                return;
+            }
+            var pos = lstActs.PointToClient(Control.MousePosition);
+            int idx = lstActs.IndexFromPoint(pos);
+            if (idx < 0 || idx >= lstActs.Items.Count)
+            {
+                e.Cancel = true;
+                return;
+            }
+            string itemText = lstActs.Items[idx]?.ToString();
+            if (string.IsNullOrEmpty(itemText) || itemText == "(Все акты)" || itemText == "Акты не найдены")
+            {
+                e.Cancel = true;
+                return;
+            }
+            if (lstActs.SelectedIndex != idx)
+                lstActs.SelectedIndex = idx;
+        }
+
+        private void MiLstActsResetWorkers_Click(object sender, EventArgs e)
+        {
+            if (!TryGetSelectedConcreteActNumber(out string actNumber)) return;
+            var confirm = MessageBox.Show(
+                "Снять бронь «в работе» у всех записей сборки и тестирования по этому акту?\n" +
+                "Продукты снова станут доступны для открытия любым сотрудникам.",
+                "Акт № " + actNumber, MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+            if (confirm != DialogResult.Yes) return;
+            try
+            {
+                int asmCount = 0, tstCount = 0;
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var productIds = ctx.Product.AsNoTracking()
+                        .Where(p => p.Act != null && p.Act.ActNumber == actNumber)
+                        .Select(p => p.ProductID)
+                        .ToList();
+                    if (productIds.Count == 0)
+                    {
+                        MessageBox.Show("Продукты для этого акта не найдены.", "Акт",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    var tmIds = ctx.TechnicalMapFull.Where(f => productIds.Contains(f.ProductID)).Select(f => f.TMID).ToList();
+                    var assemblies = ctx.TechnicalMapAssembly.Where(a => tmIds.Contains(a.TMID) && a.InProgress).ToList();
+                    var testings = ctx.TechnicalMapTesting.Where(t => tmIds.Contains(t.TMID) && t.InProgress).ToList();
+                    if (assemblies.Count == 0 && testings.Count == 0)
+                    {
+                        MessageBox.Show("Нет записей сборки или теста в статусе «в работе» для этого акта.", "Акт",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    foreach (var a in assemblies)
+                        a.InProgress = false;
+                    foreach (var t in testings)
+                        t.InProgress = false;
+                    ctx.SaveChanges();
+                    asmCount = assemblies.Count;
+                    tstCount = testings.Count;
+                }
+                MessageBox.Show($"Снята бронь: сборка — {asmCount}, тестирование — {tstCount}.", "Готово",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LoadProductsForSelectedAct();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void CtxTestingProductAdmin_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (!_isAdmin || (_currentWorkMode != WorkMode.Testing && _currentWorkMode != WorkMode.Assembly
+                && _currentWorkMode != WorkMode.PolletnikAutoTesting && _currentWorkMode != WorkMode.CrossPlataAutoTesting))
+            {
+                e.Cancel = true;
+                return;
+            }
+            if (_currentWorkMode == WorkMode.Assembly)
+                _miGrantTestingUnlock.Text = "Разрешить открытие сборки без сканирования QR";
+            else
+                _miGrantTestingUnlock.Text = "Разрешить открытие теста без сканирования QR";
+            var pos = dgvProducts.PointToClient(Control.MousePosition);
+            var hit = dgvProducts.HitTest(pos.X, pos.Y);
+            if (hit.RowIndex < 0)
+            {
+                e.Cancel = true;
+                return;
+            }
+            dgvProducts.ClearSelection();
+            dgvProducts.Rows[hit.RowIndex].Selected = true;
+        }
+
+        private int? GetSelectedProductIdForContextMenu()
+        {
+            if (dgvProducts.CurrentRow == null || dgvProducts.CurrentRow.IsNewRow) return null;
+            var v = dgvProducts.CurrentRow.Cells["ProductID"].Value;
+            if (v == null || v == DBNull.Value) return null;
+            return Convert.ToInt32(v);
+        }
+
+        private void CtxGrantTestingUnlock_Click(object sender, EventArgs e)
+        {
+            int? pid = GetSelectedProductIdForContextMenu();
+            if (!pid.HasValue) return;
+            try
+            {
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var p = ctx.Product.Find(pid.Value);
+                    if (p == null) return;
+                    if (_currentWorkMode == WorkMode.Assembly)
+                    {
+                        p.AssemblyManualUnlockByUserID = _currentUser.UserID;
+                        p.AssemblyManualUnlockUtc = DateTime.UtcNow;
+                    }
+                    else
+                    {
+                        p.TestingManualUnlockByUserID = _currentUser.UserID;
+                        p.TestingManualUnlockUtc = DateTime.UtcNow;
+                    }
+                    ctx.SaveChanges();
+                }
+                string msg = _currentWorkMode == WorkMode.Assembly
+                    ? "Разрешение сохранено. Сборщик может открыть продукт двойным щелчком."
+                    : (_currentWorkMode == WorkMode.PolletnikAutoTesting || _currentWorkMode == WorkMode.CrossPlataAutoTesting)
+                    ? "Разрешение сохранено. Можно открыть авто-тест двойным щелчком по строке этого продукта."
+                    : "Разрешение сохранено. Тестировщик может открыть продукт двойным щелчком.";
+                MessageBox.Show(msg, "Контроль доступа",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void CtxRevokeTestingUnlock_Click(object sender, EventArgs e)
+        {
+            int? pid = GetSelectedProductIdForContextMenu();
+            if (!pid.HasValue) return;
+            try
+            {
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var p = ctx.Product.Find(pid.Value);
+                    if (p == null) return;
+                    if (_currentWorkMode == WorkMode.Assembly)
+                    {
+                        p.AssemblyManualUnlockByUserID = null;
+                        p.AssemblyManualUnlockUtc = null;
+                    }
+                    else
+                    {
+                        p.TestingManualUnlockByUserID = null;
+                        p.TestingManualUnlockUtc = null;
+                    }
+                    ctx.SaveChanges();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void UpdateTestingScanBarVisibility()
+        {
+            if (_panelTestingScanBar == null) return;
+            bool singleMode = !tabControlWork.Visible;
+            bool showTesting = _currentWorkMode == WorkMode.Testing
+                && (singleMode || (tabControlWork.Visible && tabControlWork.SelectedTab == tabPageTesting));
+            bool showAssembly = _currentWorkMode == WorkMode.Assembly
+                && (singleMode || (tabControlWork.Visible && tabControlWork.SelectedTab == tabPageAssembly));
+            bool showPolletnik = _currentWorkMode == WorkMode.PolletnikAutoTesting
+                && (singleMode || (tabControlWork.Visible && tabControlWork.SelectedTab == _tabPagePolletnikAutoTest));
+            bool showCross = _currentWorkMode == WorkMode.CrossPlataAutoTesting
+                && (singleMode || (tabControlWork.Visible && tabControlWork.SelectedTab == _tabPageCrossAutoTest));
+            bool show = showTesting || showAssembly || showPolletnik || showCross;
+            if (_lblSerialScanHint != null)
+            {
+                if (_currentWorkMode == WorkMode.Assembly)
+                    _lblSerialScanHint.Text = "Скан QR — любой продукт в отгруженных актах (серийник + Enter):";
+                else if (_currentWorkMode == WorkMode.PolletnikAutoTesting)
+                    _lblSerialScanHint.Text = "Скан серийника «Полетники» для входа в авто-тест (Enter):";
+                else if (_currentWorkMode == WorkMode.CrossPlataAutoTesting)
+                    _lblSerialScanHint.Text = "Скан серийника «Кросс-плата» для входа в авто-тест (Enter):";
+                else
+                    _lblSerialScanHint.Text = "Скан QR — любой продукт в отгруженных актах (серийник + Enter):";
+            }
+            _panelTestingScanBar.Visible = show;
+            if (show && _txtTestingSerialScan != null && Visible)
+                BeginInvoke(new Action(() => { if (!_txtTestingSerialScan.IsDisposed) _txtTestingSerialScan.Focus(); }));
+        }
+
+        private void TxtTestingSerialScan_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter)
+                return;
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            string s = (_txtTestingSerialScan.Text ?? "").Trim();
+            _txtTestingSerialScan.Clear();
+            if (_currentWorkMode == WorkMode.Testing)
+                TryOpenTestingBySerial(s);
+            else if (_currentWorkMode == WorkMode.Assembly)
+                TryOpenAssemblyBySerial(s);
+            else if (_currentWorkMode == WorkMode.PolletnikAutoTesting)
+                TryOpenPolletnikAutoTestingBySerial(s);
+            else if (_currentWorkMode == WorkMode.CrossPlataAutoTesting)
+                TryOpenCrossPlateAutoTestingBySerial(s);
+        }
+
+        private static bool ProductHasActiveTestingManualUnlock(Product p)
+        {
+            if (p == null || p.TestingManualUnlockUtc == null) return false;
+            return (DateTime.UtcNow - p.TestingManualUnlockUtc.Value).TotalHours <= 12;
+        }
+
+        private static bool ProductHasActiveAssemblyManualUnlock(Product p)
+        {
+            if (p == null || p.AssemblyManualUnlockUtc == null) return false;
+            return (DateTime.UtcNow - p.AssemblyManualUnlockUtc.Value).TotalHours <= 12;
+        }
+
+        /// <summary>Индекс строки грида по серийному номеру (режимы сборка/тест).</summary>
+        private int FindDgvProductRowIndexBySerial(string serial)
+        {
+            if (dgvProducts == null || string.IsNullOrWhiteSpace(serial)) return -1;
+            serial = serial.Trim();
+            foreach (DataGridViewRow r in dgvProducts.Rows)
+            {
+                if (r.IsNewRow) continue;
+                if (!dgvProducts.Columns.Contains("SerialNumber")) return -1;
+                var cell = r.Cells["SerialNumber"].Value;
+                string rowSerial = (cell ?? "").ToString().Trim();
+                if (string.Equals(rowSerial, serial, StringComparison.OrdinalIgnoreCase))
+                    return r.Index;
+            }
+            return -1;
+        }
+
+        /// <summary>Сброс фильтров, из‑за которых строка с серийником может не попасть в грид после выбора акта.</summary>
+        private void ClearScanObstructingFilters()
+        {
+            if (!string.IsNullOrEmpty(txtSearch.Text))
+                txtSearch.Text = "";
+            if (chkDateFilter != null && chkDateFilter.Checked)
+                chkDateFilter.Checked = false;
+            if (chkTimeFilter != null && chkTimeFilter.Checked)
+                chkTimeFilter.Checked = false;
+        }
+
+        /// <summary>«Все категории», «(Все акты)» и перезагрузка списка — чтобы скан нашёл продукт вне текущего фильтра акта/категории.</summary>
+        private void PrepareWorkGridForGlobalSerialScan()
+        {
+            ClearScanObstructingFilters();
+
+            bool categoryChanged = false;
+            if (_cmbActCategory != null && _cmbActCategory.SelectedIndex != 0)
+            {
+                _cmbActCategory.SelectedIndex = 0;
+                categoryChanged = true;
+            }
+            if (!categoryChanged)
+                LoadActs();
+
+            if (lstActs != null)
+            {
+                for (int i = 0; i < lstActs.Items.Count; i++)
+                {
+                    if (lstActs.Items[i]?.ToString() == "(Все акты)")
+                    {
+                        if (lstActs.SelectedIndex != i)
+                            lstActs.SelectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            LoadProductsForSelectedAct();
+        }
+
+        /// <summary>Выбор строки списка актов по номеру акта (без переключения на «Все акты»).</summary>
+        private bool TrySelectActListItemByActNumber(string actNumber)
+        {
+            if (lstActs == null || string.IsNullOrWhiteSpace(actNumber)) return false;
+            actNumber = actNumber.Trim();
+            for (int i = 0; i < lstActs.Items.Count; i++)
+            {
+                var t = lstActs.Items[i]?.ToString();
+                if (string.IsNullOrEmpty(t) || t == "(Все акты)" || t == "Акты не найдены") continue;
+                if (string.Equals(ExtractActNumber(t), actNumber, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (lstActs.SelectedIndex != i)
+                        lstActs.SelectedIndex = i;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Сброс фильтров и категории актов, затем выбор конкретного акта — для скана авто-теста полётники/кросс.</summary>
+        private void PrepareGridForConcreteActScan(string actNumber)
+        {
+            ClearScanObstructingFilters();
+            bool categoryChanged = false;
+            if (_cmbActCategory != null && _cmbActCategory.SelectedIndex != 0)
+            {
+                _cmbActCategory.SelectedIndex = 0;
+                categoryChanged = true;
+            }
+            if (!categoryChanged)
+                LoadActs();
+            TrySelectActListItemByActNumber(actNumber);
+            LoadProductsForSelectedAct();
+        }
+
+        /// <summary>Скан серийника для открытия AutoTestingForm: продукт должен быть заданной категории, акт — конкретный.</summary>
+        private void TryOpenAutoTestingBySerial(string serial, bool crossOnlyMode, string requiredCategoryName, string modeTitle)
+        {
+            if (string.IsNullOrWhiteSpace(serial)) return;
+            serial = serial.Trim();
+
+            int row = FindDgvProductRowIndexBySerial(serial);
+            if (row >= 0)
+            {
+                int productId = (int)dgvProducts.Rows[row].Cells["ProductID"].Value;
+                var data = _allProductData.FirstOrDefault(d => d.ProductID == productId);
+                if (data == null)
+                {
+                    MessageBox.Show("Не удалось определить данные продукта.", modeTitle,
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                if (!string.Equals((data.Category ?? "").Trim(), requiredCategoryName, StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show($"Скан: для этого режима нужен продукт категории «{requiredCategoryName}».", modeTitle,
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                if (string.IsNullOrEmpty(data.Act) || data.Act == "—")
+                {
+                    MessageBox.Show("У продукта нет акта.", modeTitle,
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                if (!TrySelectActListItemByActNumber(data.Act))
+                    PrepareGridForConcreteActScan(data.Act);
+                if (!TrySelectActListItemByActNumber(data.Act))
+                {
+                    MessageBox.Show($"Не найден акт «{data.Act}» в списке (проверьте фильтр категории актов).", modeTitle,
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                if (crossOnlyMode)
+                    TryOpenCrossPlateAutoTestingForSelectedAct();
+                else
+                    TryOpenPolletnikAutoTestingForSelectedAct();
+                return;
+            }
+
+            try
+            {
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var hit = ctx.Product.AsNoTracking()
+                        .Where(p => p.Act != null && p.ProducType != null && p.ProducType.TypeName == requiredCategoryName && p.ProductSerial == serial)
+                        .Select(p => new { p.ProductID, ActNumber = p.Act.ActNumber, p.PostTestingWarehouseAt })
+                        .FirstOrDefault();
+                    if (hit == null)
+                    {
+                        string sLower = serial.ToLowerInvariant();
+                        hit = ctx.Product.AsNoTracking()
+                            .Where(p => p.Act != null && p.ProducType != null && p.ProducType.TypeName == requiredCategoryName && p.ProductSerial.ToLower() == sLower)
+                            .Select(p => new { p.ProductID, ActNumber = p.Act.ActNumber, p.PostTestingWarehouseAt })
+                            .FirstOrDefault();
+                    }
+                    if (hit == null)
+                    {
+                        MessageBox.Show("Продукт с таким серийным номером и категорией не найден.", modeTitle,
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    if (hit.PostTestingWarehouseAt != null)
+                    {
+                        MessageBox.Show("Продукт уже передан на склад после теста.", modeTitle,
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    if (!TrySelectActListItemByActNumber(hit.ActNumber))
+                        PrepareGridForConcreteActScan(hit.ActNumber);
+                    if (!TrySelectActListItemByActNumber(hit.ActNumber))
+                    {
+                        MessageBox.Show($"Не найден акт «{hit.ActNumber}» в списке.", modeTitle,
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+
+                if (crossOnlyMode)
+                    TryOpenCrossPlateAutoTestingForSelectedAct();
+                else
+                    TryOpenPolletnikAutoTestingForSelectedAct();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Скан: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void TryOpenPolletnikAutoTestingBySerial(string serial)
+        {
+            if (_currentWorkMode != WorkMode.PolletnikAutoTesting) return;
+            TryOpenAutoTestingBySerial(serial, crossOnlyMode: false, PolletnikiTypeName, "Тестирование полётников");
+        }
+
+        private void TryOpenCrossPlateAutoTestingBySerial(string serial)
+        {
+            if (_currentWorkMode != WorkMode.CrossPlataAutoTesting) return;
+            TryOpenAutoTestingBySerial(serial, crossOnlyMode: true, CrossPlateDbHelper.CrossProductTypeName, "Тестирование кросс-плат");
+        }
+
+        private void TryOpenTestingBySerial(string serial)
+        {
+            if (_currentWorkMode != WorkMode.Testing || string.IsNullOrWhiteSpace(serial))
+                return;
+            if (!ObsConfig.IsConfigured())
+            {
+                MessageBox.Show("Для тестирования продуктов необходимо настроить подключение к OBS.\n" +
+                    "Откройте «Настройки OBS» на странице авторизации.",
+                    "OBS не настроен", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            serial = serial.Trim();
+            int foundRow = FindDgvProductRowIndexBySerial(serial);
+            if (foundRow >= 0)
+            {
+                ProcessProductGridActivation(foundRow, requireManualUnlockForDoubleClick: false);
+                return;
+            }
+
+            try
+            {
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var hit = ctx.Product.AsNoTracking()
+                        .Where(p => p.Act != null && p.ProductSerial == serial)
+                        .Select(p => new
+                        {
+                            p.ProductID,
+                            p.ProductSerial,
+                            p.PostTestingWarehouseAt,
+                            ActNumber = p.Act.ActNumber,
+                            ActIsReady = p.Act.IsReady
+                        })
+                        .FirstOrDefault();
+                    if (hit == null)
+                    {
+                        string sLower = serial.ToLowerInvariant();
+                        hit = ctx.Product.AsNoTracking()
+                            .Where(p => p.Act != null && p.ProductSerial.ToLower() == sLower)
+                            .Select(p => new
+                            {
+                                p.ProductID,
+                                p.ProductSerial,
+                                p.PostTestingWarehouseAt,
+                                ActNumber = p.Act.ActNumber,
+                                ActIsReady = p.Act.IsReady
+                            })
+                            .FirstOrDefault();
+                    }
+                    if (hit == null)
+                    {
+                        MessageBox.Show("Продукт с таким серийным номером не найден в базе или не привязан к акту.",
+                            "Скан", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    if (!hit.ActIsReady)
+                    {
+                        MessageBox.Show("Акт этого продукта ещё не отмечен как отгруженный — тестирование по списку недоступно.",
+                            "Скан", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    if (hit.PostTestingWarehouseAt != null)
+                    {
+                        MessageBox.Show("Продукт уже передан на склад после теста — открыть тестирование нельзя.",
+                            "Скан", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    bool readyForTest = ctx.TechnicalMapFull.AsNoTracking()
+                        .Any(f => f.ProductID == hit.ProductID && !f.Inspection
+                            && f.TechnicalMapAssembly.Any(a => a.IsReady));
+                    if (!readyForTest)
+                    {
+                        MessageBox.Show("Продукт не готов к тестированию (нет завершённой сборки по техкарте или техкарта на инспекции).",
+                            "Скан", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                }
+
+                PrepareWorkGridForGlobalSerialScan();
+                foundRow = FindDgvProductRowIndexBySerial(serial);
+                if (foundRow < 0)
+                {
+                    MessageBox.Show("Продукт найден в базе, но не отображается в списке тестирования. Обновите данные или обратитесь к администратору.",
+                        "Скан", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                ProcessProductGridActivation(foundRow, requireManualUnlockForDoubleClick: false);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Скан: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void TryOpenAssemblyBySerial(string serial)
+        {
+            if (_currentWorkMode != WorkMode.Assembly || string.IsNullOrWhiteSpace(serial))
+                return;
+
+            serial = serial.Trim();
+            int foundRow = FindDgvProductRowIndexBySerial(serial);
+            if (foundRow >= 0)
+            {
+                ProcessProductGridActivation(foundRow, requireManualUnlockForDoubleClick: false);
+                return;
+            }
+
+            try
+            {
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var hit = ctx.Product.AsNoTracking()
+                        .Where(p => p.Act != null && p.ProductSerial == serial)
+                        .Select(p => new { p.ProductID, p.ProductSerial, ActIsReady = p.Act.IsReady })
+                        .FirstOrDefault();
+                    if (hit == null)
+                    {
+                        string sLower = serial.ToLowerInvariant();
+                        hit = ctx.Product.AsNoTracking()
+                            .Where(p => p.Act != null && p.ProductSerial.ToLower() == sLower)
+                            .Select(p => new { p.ProductID, p.ProductSerial, ActIsReady = p.Act.IsReady })
+                            .FirstOrDefault();
+                    }
+                    if (hit == null)
+                    {
+                        MessageBox.Show("Продукт с таким серийным номером не найден в базе или не привязан к акту.",
+                            "Скан", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    if (!hit.ActIsReady)
+                    {
+                        MessageBox.Show("Акт этого продукта ещё не отмечен как отгруженный — сборка по списку недоступна.",
+                            "Скан", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                }
+
+                PrepareWorkGridForGlobalSerialScan();
+                foundRow = FindDgvProductRowIndexBySerial(serial);
+                if (foundRow < 0)
+                {
+                    MessageBox.Show("Продукт найден в базе, но не отображается в списке сборки. Обновите данные или обратитесь к администратору.",
+                        "Скан", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                ProcessProductGridActivation(foundRow, requireManualUnlockForDoubleClick: false);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Скан: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void ClearTestingManualUnlockIfNeeded(int productId, bool testingSessionFinishedOk)
+        {
+            if (!testingSessionFinishedOk) return;
+            try
+            {
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var p = ctx.Product.Find(productId);
+                    if (p == null) return;
+                    p.TestingManualUnlockByUserID = null;
+                    p.TestingManualUnlockUtc = null;
+                    ctx.SaveChanges();
+                }
+            }
+            catch { /* ignore */ }
+        }
+
+        private void ClearAssemblyManualUnlockIfNeeded(int productId, bool assemblySessionFinishedOk)
+        {
+            if (!assemblySessionFinishedOk) return;
+            try
+            {
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var p = ctx.Product.Find(productId);
+                    if (p == null) return;
+                    p.AssemblyManualUnlockByUserID = null;
+                    p.AssemblyManualUnlockUtc = null;
+                    ctx.SaveChanges();
+                }
+            }
+            catch { /* ignore */ }
         }
 
         private TabPage _tabAdminData;
@@ -837,6 +1530,7 @@ namespace SaveData1
             }
 
             UpdateTesterActionButtons();
+            UpdateTestingScanBarVisibility();
         }
 
         private void UpdateTesterActionButtons()
@@ -873,6 +1567,7 @@ namespace SaveData1
                 _hasAssembly = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Сборщик");
                 _hasTesting = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Тестировщик");
                 _hasInspection = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Инспектор");
+                _hasControl = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Контроль");
 
                 Text = "Сотрудник — " + (_currentUser.UserName ?? "");
 
@@ -935,11 +1630,15 @@ namespace SaveData1
                 tabControlActions.TabPages.Remove(tabPageActionsAdmin);
             if (tabControlActions.TabPages.Contains(tabPageActionsTester))
                 tabControlActions.TabPages.Remove(tabPageActionsTester);
+            if (tabControlActions.TabPages.Contains(tabPageActionsControl))
+                tabControlActions.TabPages.Remove(tabPageActionsControl);
             int insert = 1;
             if (_hasAdminPermission)
                 tabControlActions.TabPages.Insert(insert++, tabPageActionsAdmin);
             if (_hasTesting)
-                tabControlActions.TabPages.Insert(insert, tabPageActionsTester);
+                tabControlActions.TabPages.Insert(insert++, tabPageActionsTester);
+            if (_hasControl)
+                tabControlActions.TabPages.Insert(insert, tabPageActionsControl);
         }
 
         private void RebuildBaselineWorkModesFromPermissionFlags()
@@ -962,6 +1661,7 @@ namespace SaveData1
                 {
                     _allProductData = new List<TechnicalMapView>();
                     ApplyFilters();
+                    UpdateTestingScanBarVisibility();
                     return;
                 }
                 using (var context = ConnectionHelper.CreateContext())
@@ -979,7 +1679,8 @@ namespace SaveData1
                             .Include(p => p.ProducType)
                             .Include(p => p.ProducType.Country)
                             .Include(p => p.Act)
-                            .Where(p => p.Act != null && p.ProducType != null && p.ProducType.TypeName == typeName);
+                            .Where(p => p.Act != null && p.ProducType != null && p.ProducType.TypeName == typeName
+                                && p.PostTestingWarehouseAt == null);
                         if (!allActs)
                             productsQuery = productsQuery.Where(p => p.Act.ActNumber == actNumber);
 
@@ -1036,7 +1737,8 @@ namespace SaveData1
                             .Include("TechnicalMapAssembly")
                             .Include("TechnicalMapTesting.UsersProfile")
                             .Include("TechnicalMapTesting.Description")
-                            .Where(f => f.Product.Act != null && !f.Inspection && f.TechnicalMapAssembly.Any(a => a.IsReady));
+                            .Where(f => f.Product.Act != null && !f.Inspection && f.TechnicalMapAssembly.Any(a => a.IsReady)
+                                && f.Product.PostTestingWarehouseAt == null);
                         if (!allActs)
                             queryTester = queryTester.Where(f => f.Product.Act.ActNumber == actNumber);
 
@@ -1212,11 +1914,12 @@ namespace SaveData1
                     }
 
                     ApplyFilters();
+                    UpdateTestingScanBarVisibility();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки продуктов: " + ex.Message, "Ошибка",
+                MessageBox.Show("Ошибка загрузки продуктов: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1378,8 +2081,13 @@ namespace SaveData1
         private void dgvProducts_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
+            ProcessProductGridActivation(e.RowIndex, requireManualUnlockForDoubleClick: true);
+        }
 
-            var row = dgvProducts.Rows[e.RowIndex];
+        /// <summary>Открытие работы: двойной клик (тест/сборка — с проверкой разрешения) или скан QR (без разрешения).</summary>
+        private void ProcessProductGridActivation(int rowIndex, bool requireManualUnlockForDoubleClick)
+        {
+            var row = dgvProducts.Rows[rowIndex];
             int tmId = (int)row.Cells["TMID"].Value;
             int productId = (int)row.Cells["ProductID"].Value;
             bool inProgress = (bool)row.Cells["InProgress"].Value;
@@ -1387,11 +2095,41 @@ namespace SaveData1
 
             if (_currentWorkMode == WorkMode.PolletnikAutoTesting)
             {
+                if (requireManualUnlockForDoubleClick)
+                {
+                    using (var ctx = ConnectionHelper.CreateContext())
+                    {
+                        var p = ctx.Product.AsNoTracking().FirstOrDefault(x => x.ProductID == productId);
+                        if (!ProductHasActiveTestingManualUnlock(p))
+                        {
+                            MessageBox.Show(
+                                "Откройте авто-тест сканированием серийника продукта «Полетники».\n" +
+                                "Администратор может выдать разрешение: правая кнопка мыши по строке → «Разрешить открытие теста без сканирования QR».",
+                                "Тестирование полётников", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+                    }
+                }
                 TryOpenPolletnikAutoTestingForSelectedAct();
                 return;
             }
             if (_currentWorkMode == WorkMode.CrossPlataAutoTesting)
             {
+                if (requireManualUnlockForDoubleClick)
+                {
+                    using (var ctx = ConnectionHelper.CreateContext())
+                    {
+                        var p = ctx.Product.AsNoTracking().FirstOrDefault(x => x.ProductID == productId);
+                        if (!ProductHasActiveTestingManualUnlock(p))
+                        {
+                            MessageBox.Show(
+                                "Откройте авто-тест сканированием серийника продукта «Кросс-плата».\n" +
+                                "Администратор может выдать разрешение: правая кнопка мыши по строке → «Разрешить открытие теста без сканирования QR».",
+                                "Тестирование кросс-плат", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+                    }
+                }
                 TryOpenCrossPlateAutoTestingForSelectedAct();
                 return;
             }
@@ -1404,6 +2142,40 @@ namespace SaveData1
                         "Откройте «Настройки OBS» на странице авторизации.",
                         "OBS не настроен", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
+                }
+                if (requireManualUnlockForDoubleClick)
+                {
+                    using (var ctx = ConnectionHelper.CreateContext())
+                    {
+                        var p = ctx.Product.AsNoTracking().FirstOrDefault(x => x.ProductID == productId);
+                        if (!ProductHasActiveTestingManualUnlock(p))
+                        {
+                            MessageBox.Show(
+                                "Откройте продукт сканированием QR (серийник в текущем списке).\n" +
+                                "Администратор может выдать разрешение: правая кнопка мыши по строке → «Разрешить открытие теста без сканирования QR».",
+                                "Тестирование", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            if (_currentWorkMode == WorkMode.Assembly)
+            {
+                if (requireManualUnlockForDoubleClick)
+                {
+                    using (var ctx = ConnectionHelper.CreateContext())
+                    {
+                        var p = ctx.Product.AsNoTracking().FirstOrDefault(x => x.ProductID == productId);
+                        if (!ProductHasActiveAssemblyManualUnlock(p))
+                        {
+                            MessageBox.Show(
+                                "Откройте продукт сканированием QR (серийник в текущем списке).\n" +
+                                "Администратор может выдать разрешение: правая кнопка мыши по строке → «Разрешить открытие сборки без сканирования QR».",
+                                "Сборка", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+                    }
                 }
             }
 
@@ -1644,6 +2416,7 @@ namespace SaveData1
                                     MoveTestVideoToProductFolder(obsOutputPath, serial, productId);
                                 if (videoOk)
                                     MessageBox.Show("Успешно сохранено.", "Сохранение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                ClearTestingManualUnlockIfNeeded(productId, true);
                             }
                         }
                     }
@@ -1652,7 +2425,11 @@ namespace SaveData1
                         using (var form = new ProductWorkForm(openedTmId, serial, category, fio, date, timeStart, timeEnd, false))
                         {
                             if (form.ShowDialog(this) == DialogResult.OK)
+                            {
                                 MessageBox.Show("Успешно сохранено.", "Сохранение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                if (_currentWorkMode == WorkMode.Assembly)
+                                    ClearAssemblyManualUnlockIfNeeded(productId, true);
+                            }
                         }
                     }
                 }
@@ -2053,6 +2830,40 @@ namespace SaveData1
             return true;
         }
 
+        private bool TryGetSelectedConcreteActNumber(out string actNumber)
+        {
+            actNumber = null;
+            string selectedActText = lstActs.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(selectedActText) || selectedActText == "(Все акты)" || selectedActText == "Акты не найдены")
+            {
+                MessageBox.Show("Выберите конкретный акт из списка.", "Внимание",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            actNumber = ExtractActNumber(selectedActText);
+            return !string.IsNullOrEmpty(actNumber);
+        }
+
+        private void btnQualityControlOpen_Click(object sender, EventArgs e)
+        {
+            if (!TryGetSelectedConcreteActNumber(out string actNumber)) return;
+            using (var f = new QualityControlForm(actNumber, _currentUser))
+            {
+                if (f.ShowDialog(this) == DialogResult.OK)
+                    LoadProductsForSelectedAct();
+            }
+        }
+
+        private void btnPostTestingShip_Click(object sender, EventArgs e)
+        {
+            if (!TryGetSelectedConcreteActNumber(out string actNumber)) return;
+            using (var f = new PostTestingShipToWarehouseForm(actNumber, _currentUser))
+            {
+                if (f.ShowDialog(this) == DialogResult.OK)
+                    LoadProductsForSelectedAct();
+            }
+        }
+
         private void btnGenerateQrEmployee_Click(object sender, EventArgs e)
         {
             string selectedActText = lstActs.SelectedItem?.ToString();
@@ -2069,44 +2880,13 @@ namespace SaveData1
 
         private void GenerateQrCodesForActByNumber(string actNumber)
         {
-            string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Template.docx");
+            if (!QrActWordDocumentService.TryEnsureQrTemplateExists(this))
+                return;
 
-            if (!File.Exists(templatePath))
-            {
-                MessageBox.Show("Файл шаблона 'Template.docx' не найден в папке с программой.\n\nПожалуйста, выберите ваш файл-шаблон (Пр Godex ОБРАЗЕЦ.docx). Он будет скопирован в папку с программой для дальнейшего автоматического использования.", "Шаблон не найден", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                using (var ofd = new OpenFileDialog())
-                {
-                    ofd.Title = "Выберите файл-шаблон Word (Пр Godex ОБРАЗЕЦ.docx)";
-                    ofd.Filter = "Word Documents (*.docx)|*.docx|All Files (*.*)|*.*";
-                    if (ofd.ShowDialog() != DialogResult.OK)
-                        return;
-
-                    try
-                    {
-                        File.Copy(ofd.FileName, templatePath, true);
-                        MessageBox.Show("Шаблон успешно сохранен! Теперь он будет использоваться автоматически.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Не удалось скопировать шаблон: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return;
-                    }
-                }
-            }
-
-            string savePath = "";
-            using (var sfd = new SaveFileDialog())
-            {
-                sfd.Title = "Сохранить итоговый документ с QR-кодами как...";
-                sfd.Filter = "Word Documents (*.docx)|*.docx";
-                sfd.FileName = $"Акт_№{actNumber}_QR.docx";
-                if (sfd.ShowDialog() != DialogResult.OK)
-                    return;
-                savePath = sfd.FileName;
-            }
-
-            Microsoft.Office.Interop.Word.Application wordApp = null;
-            Microsoft.Office.Interop.Word.Document finalDoc = null;
+            string templatePath = QrActWordDocumentService.GetTemplateFullPath();
+            string savePath = QrActWordDocumentService.PromptQrOutputPath(this, actNumber);
+            if (savePath == null)
+                return;
 
             try
             {
@@ -2124,89 +2904,9 @@ namespace SaveData1
                     }
 
                     this.Cursor = Cursors.WaitCursor;
-
-                    wordApp = new Microsoft.Office.Interop.Word.Application();
-                    wordApp.Visible = false;
-                    wordApp.Options.SmartCutPaste = false;
-
-                    finalDoc = wordApp.Documents.Add(templatePath);
-                    finalDoc.Content.Copy();
-
-                    int generated = 0;
-                    for (int i = 0; i < products.Count; i++)
-                    {
-                        var product = products[i];
-                        string serial = product.ProductSerial;
-                        if (string.IsNullOrEmpty(serial))
-                            continue;
-
-                        string tempImg = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".png");
-                        QrCodeHelper.SaveQrCode(serial, tempImg);
-
-                        Microsoft.Office.Interop.Word.Range workRange;
-
-                        if (i == 0)
-                        {
-                            workRange = finalDoc.Content;
-                        }
-                        else
-                        {
-                            var pasteRange = finalDoc.Content;
-                            pasteRange.Collapse(Microsoft.Office.Interop.Word.WdCollapseDirection.wdCollapseEnd);
-
-                            pasteRange.Text = "\r";
-                            pasteRange.Collapse(Microsoft.Office.Interop.Word.WdCollapseDirection.wdCollapseEnd);
-
-                            int start = pasteRange.Start;
-                            pasteRange.Paste();
-                            int end = finalDoc.Content.End;
-                            workRange = finalDoc.Range(start, end);
-                            RemoveLeadingParagraphFromPreviousLineIfAtPageStart(finalDoc, workRange);
-                            RemoveLeadingEmptyParagraph(workRange);
-                        }
-
-                        var findObj = workRange.Find;
-                        findObj.ClearFormatting();
-                        findObj.Replacement.ClearFormatting();
-                        findObj.Execute("993", ReplaceWith: actNumber, Replace: Microsoft.Office.Interop.Word.WdReplace.wdReplaceAll);
-
-                        findObj.Execute("Серийный", ReplaceWith: serial, Replace: Microsoft.Office.Interop.Word.WdReplace.wdReplaceAll);
-
-                        var findQr = workRange.Find;
-                        findQr.ClearFormatting();
-                        findQr.Text = "QR код";
-                        if (findQr.Execute())
-                        {
-                            Microsoft.Office.Interop.Word.Range rangeQr = findQr.Parent;
-                            rangeQr.Text = "";
-                            object linkToFile = false;
-                            object saveWithDoc = true;
-                            rangeQr.InlineShapes.AddPicture(tempImg, ref linkToFile, ref saveWithDoc);
-                        }
-
-                        if (File.Exists(tempImg))
-                            File.Delete(tempImg);
-
-                        generated++;
-                    }
-
-                    try
-                    {
-                        var endRange = finalDoc.Content;
-                        endRange.Collapse(Microsoft.Office.Interop.Word.WdCollapseDirection.wdCollapseEnd);
-                        if (endRange.Start > 0)
-                        {
-                            endRange.MoveStart(Microsoft.Office.Interop.Word.WdUnits.wdCharacter, -1);
-                            string lastCh = endRange.Text ?? "";
-                            if (lastCh.Length == 1 && (lastCh[0] == '\r' || lastCh[0] == '\n' || (int)lastCh[0] == 13 || (int)lastCh[0] == 10))
-                                endRange.Text = "";
-                        }
-                    }
-                    catch { /* игнорируем ошибки при удалении последнего символа */ }
-
-                    finalDoc.SaveAs2(savePath);
-
+                    int generated = QrActWordDocumentService.GenerateActQrWordDocument(templatePath, savePath, actNumber, products);
                     this.Cursor = Cursors.Default;
+
                     MessageBox.Show(
                         "Сгенерировано QR-кодов: " + generated + " из " + products.Count + "\n" +
                         "Файл сохранен: " + savePath,
@@ -2232,62 +2932,7 @@ namespace SaveData1
             finally
             {
                 this.Cursor = Cursors.Default;
-                if (finalDoc != null)
-                {
-                    finalDoc.Close(Microsoft.Office.Interop.Word.WdSaveOptions.wdDoNotSaveChanges);
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(finalDoc);
-                }
-                if (wordApp != null)
-                {
-                    wordApp.Quit();
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(wordApp);
-                }
             }
-        }
-
-        /// <summary>Удаление ведущих символов абзаца в начале диапазона.</summary>
-        private static void RemoveLeadingEmptyParagraph(Microsoft.Office.Interop.Word.Range workRange)
-        {
-            if (workRange == null || workRange.Start >= workRange.End) return;
-            const int maxRemove = 20;
-            for (int i = 0; i < maxRemove; i++)
-            {
-                if (workRange.Start >= workRange.End) return;
-                var first = workRange.Duplicate;
-                first.Collapse(Microsoft.Office.Interop.Word.WdCollapseDirection.wdCollapseStart);
-                first.MoveEnd(Microsoft.Office.Interop.Word.WdUnits.wdCharacter, 1);
-                string t = first.Text ?? "";
-                if (t.Length != 1) return;
-                char c = t[0];
-                if (c != '\r' && c != '\n' && (int)c != 13 && (int)c != 10) return;
-                first.Text = "";
-            }
-        }
-
-        /// <summary>Удаление лишнего конца абзаца после QR при переносе на следующую страницу.</summary>
-        private static void RemoveLeadingParagraphFromPreviousLineIfAtPageStart(Microsoft.Office.Interop.Word.Document doc, Microsoft.Office.Interop.Word.Range workRange)
-        {
-            if (doc == null || workRange == null || workRange.Start <= 1 || workRange.Start >= workRange.End) return;
-            try
-            {
-                var firstChar = workRange.Duplicate;
-                firstChar.Collapse(Microsoft.Office.Interop.Word.WdCollapseDirection.wdCollapseStart);
-                firstChar.MoveEnd(Microsoft.Office.Interop.Word.WdUnits.wdCharacter, 1);
-                string firstText = firstChar.Text ?? "";
-                if (firstText.Length != 1) return;
-                char c = firstText[0];
-                if (c != '\r' && c != '\n' && (int)c != 13 && (int)c != 10) return;
-
-                var beforeRange = doc.Range(workRange.Start - 1, workRange.Start);
-                string t = beforeRange.Text ?? "";
-                if (t.Length != 1 || (t[0] != '\r' && t[0] != '\n' && (int)t[0] != 13 && (int)t[0] != 10)) return;
-                int pageAtStart = (int)workRange.Information[Microsoft.Office.Interop.Word.WdInformation.wdActiveEndPageNumber];
-                var prevRange = doc.Range(workRange.Start - 1, workRange.Start - 1);
-                int pageBefore = (int)prevRange.Information[Microsoft.Office.Interop.Word.WdInformation.wdActiveEndPageNumber];
-                if (pageAtStart > pageBefore) return;
-                beforeRange.Text = "";
-            }
-            catch { /* игнорируем ошибки */ }
         }
 
         #endregion
@@ -2745,7 +3390,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки продуктов: " + ex.Message, "Ошибка",
+                MessageBox.Show("Ошибка загрузки продуктов: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -3202,7 +3847,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки продуктов: " + ex.Message, "Ошибка",
+                MessageBox.Show("Ошибка загрузки продуктов: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -3487,7 +4132,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки статистики: " + ex.Message, "Ошибка",
+                MessageBox.Show("Ошибка загрузки статистики: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -3495,6 +4140,152 @@ namespace SaveData1
         private void btnRefreshStats_Click(object sender, EventArgs e)
         {
             LoadDefectStatistics();
+        }
+
+        /// <summary>Сводка по актам на отгрузке (IsReady): тест, брак, контроль, передача на склад.</summary>
+        private static (int total, int testedOk, int defect, int qcPassed, int shippedPost, string actFullQc)
+            ComputeProductionStageStats(
+                IEnumerable<(int ProductID, DateTime? PostTestingWarehouseAt, bool QualityControlPassed)> products,
+                IReadOnlyDictionary<int, TechnicalMapFull> fullRows)
+        {
+            var list = products as IList<(int ProductID, DateTime? PostTestingWarehouseAt, bool QualityControlPassed)> ?? products.ToList();
+            int total = list.Count;
+            int testedOk = 0, defect = 0, qcPassed = 0, shippedPost = 0;
+            int eligibleQc = 0;
+            bool allEligibleQc = true;
+
+            foreach (var p in list)
+            {
+                if (p.PostTestingWarehouseAt != null)
+                    shippedPost++;
+                if (p.QualityControlPassed)
+                    qcPassed++;
+
+                if (!fullRows.TryGetValue(p.ProductID, out var full) || full.Inspection
+                    || full.TechnicalMapAssembly == null || !full.TechnicalMapAssembly.Any(a => a.IsReady))
+                    continue;
+
+                var asm = full.TechnicalMapAssembly.OrderByDescending(a => a.TMAID).FirstOrDefault();
+                var tst = full.TechnicalMapTesting != null && full.TechnicalMapTesting.Count > 0
+                    ? full.TechnicalMapTesting.OrderByDescending(t => t.TMTID).First()
+                    : null;
+
+                bool asmFault = asm != null && asm.Fault;
+                bool tstFault = tst != null && tst.Fault;
+                if (asmFault || tstFault)
+                    defect++;
+                else if (tst != null && tst.IsReadt && !tst.Fault)
+                {
+                    testedOk++;
+                    eligibleQc++;
+                    if (!p.QualityControlPassed)
+                        allEligibleQc = false;
+                }
+            }
+
+            string actFullQc = eligibleQc == 0 ? "—" : (allEligibleQc ? "Да" : "Нет");
+            return (total, testedOk, defect, qcPassed, shippedPost, actFullQc);
+        }
+
+        private void LoadProductionStageStatistics()
+        {
+            if (dgvProductionStages == null) return;
+            try
+            {
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    // Проекция только нужных полей Product — не тянем новые колонки модели (например AssemblyManualUnlock*),
+                    // если схема БД ещё не обновлена.
+                    var productRows = ctx.Product.AsNoTracking()
+                        .Where(p => p.Act != null && p.Act.IsReady)
+                        .Select(p => new
+                        {
+                            p.ProductID,
+                            p.PostTestingWarehouseAt,
+                            p.QualityControlPassed,
+                            ActNumber = p.Act.ActNumber,
+                            Category = p.ProducType != null ? p.ProducType.TypeName : "—"
+                        })
+                        .ToList();
+
+                    var fullRows = ctx.TechnicalMapFull.AsNoTracking()
+                        .Include("TechnicalMapAssembly")
+                        .Include("TechnicalMapTesting")
+                        .ToList()
+                        .GroupBy(f => f.ProductID)
+                        .ToDictionary(g => g.Key, g => g.OrderByDescending(f => f.TMID).First());
+
+                    var categoryNames = productRows
+                        .Select(p => p.Category)
+                        .Distinct()
+                        .OrderBy(n => n)
+                        .ToList();
+
+                    var rows = new List<object>();
+                    foreach (string category in categoryNames)
+                    {
+                        var allInCategory = productRows.Where(p => p.Category == category).ToList();
+                        if (allInCategory.Count == 0)
+                            continue;
+
+                        var sum = ComputeProductionStageStats(
+                            allInCategory.Select(p => (p.ProductID, p.PostTestingWarehouseAt, p.QualityControlPassed)),
+                            fullRows);
+                        rows.Add(new
+                        {
+                            Категория = category,
+                            Акт = "Итого по категории",
+                            Всего = sum.total,
+                            УспешноТест = sum.testedOk,
+                            Брак = sum.defect,
+                            КонтрольПройден = sum.qcPassed,
+                            НаСкладеПослеТеста = sum.shippedPost,
+                            АктПолностьюКонтроль = sum.actFullQc
+                        });
+
+                        foreach (var actNumber in productRows.Where(p => p.Category == category).Select(p => p.ActNumber).Distinct().OrderBy(n => n))
+                        {
+                            var grp = productRows.Where(p => p.Category == category && p.ActNumber == actNumber).ToList();
+                            if (grp.Count == 0)
+                                continue;
+                            var d = ComputeProductionStageStats(
+                                grp.Select(p => (p.ProductID, p.PostTestingWarehouseAt, p.QualityControlPassed)),
+                                fullRows);
+                            rows.Add(new
+                            {
+                                Категория = category,
+                                Акт = actNumber,
+                                Всего = d.total,
+                                УспешноТест = d.testedOk,
+                                Брак = d.defect,
+                                КонтрольПройден = d.qcPassed,
+                                НаСкладеПослеТеста = d.shippedPost,
+                                АктПолностьюКонтроль = d.actFullQc
+                            });
+                        }
+                    }
+
+                    dgvProductionStages.DataSource = rows;
+                    if (dgvProductionStages.Columns.Contains("Категория")) dgvProductionStages.Columns["Категория"].HeaderText = "Категория";
+                    if (dgvProductionStages.Columns.Contains("Акт")) dgvProductionStages.Columns["Акт"].HeaderText = "Акт";
+                    if (dgvProductionStages.Columns.Contains("Всего")) dgvProductionStages.Columns["Всего"].HeaderText = "Всего продуктов";
+                    if (dgvProductionStages.Columns.Contains("УспешноТест")) dgvProductionStages.Columns["УспешноТест"].HeaderText = "Успешно протестировано";
+                    if (dgvProductionStages.Columns.Contains("Брак")) dgvProductionStages.Columns["Брак"].HeaderText = "Брак (сборка/тест)";
+                    if (dgvProductionStages.Columns.Contains("КонтрольПройден")) dgvProductionStages.Columns["КонтрольПройден"].HeaderText = "Прошли контроль";
+                    if (dgvProductionStages.Columns.Contains("НаСкладеПослеТеста")) dgvProductionStages.Columns["НаСкладеПослеТеста"].HeaderText = "На складе после теста";
+                    if (dgvProductionStages.Columns.Contains("АктПолностьюКонтроль")) dgvProductionStages.Columns["АктПолностьюКонтроль"].HeaderText = "Акт полностью на контроле";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка загрузки сводки: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnRefreshProductionStages_Click(object sender, EventArgs e)
+        {
+            LoadProductionStageStatistics();
         }
 
         #endregion

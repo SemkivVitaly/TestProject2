@@ -1,0 +1,24 @@
+# Соглашения о форматировании для репозитория SaveData1
+# https://editorconfig.org
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,csproj,config,resx}]
+indent_style = space
+indent_size = 4
+
+[*.{sql,md}]
+indent_style = space
+indent_size = 4
+
+[*.cs]
+# Стиль Microsoft / Visual Studio по умолчанию для C#
+dotnet_sort_system_directives_first = true
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion

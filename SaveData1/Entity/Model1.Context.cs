@@ -28,6 +28,7 @@ namespace SaveData1.Entity
         }
     
         public virtual DbSet<Act> Act { get; set; }
+        public virtual DbSet<BridgeLogSave> BridgeLogSave { get; set; }
         public virtual DbSet<Country> Country { get; set; }
         public virtual DbSet<Description> Description { get; set; }
         public virtual DbSet<Error> Error { get; set; }
@@ -47,7 +48,6 @@ namespace SaveData1.Entity
         public virtual DbSet<TestFlight> TestFlight { get; set; }
         public virtual DbSet<UsersProfile> UsersProfile { get; set; }
         public virtual DbSet<UserWithPermissions> UserWithPermissions { get; set; }
-        public virtual DbSet<BridgeLogSave> BridgeLogSave { get; set; }
     
         public virtual int sp_alterdiagram(string diagramname, Nullable<int> owner_id, Nullable<int> version, byte[] definition)
         {

@@ -199,11 +199,26 @@
     <Compile Include="Froms\BridgeLogForm.Designer.cs">
       <DependentUpon>BridgeLogForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Froms\ScanOnlySerialTextBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Froms\EmployeeForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Froms\EmployeeForm.Designer.cs">
       <DependentUpon>EmployeeForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\QualityControlForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\QualityControlForm.Designer.cs">
+      <DependentUpon>QualityControlForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Froms\PostTestingShipToWarehouseForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Froms\PostTestingShipToWarehouseForm.Designer.cs">
+      <DependentUpon>PostTestingShipToWarehouseForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Froms\UserEditDialog.cs">
       <SubType>Form</SubType>
@@ -279,6 +294,9 @@
     <Compile Include="Entity\SaveDataEntitiesPartial.cs" />
     <Compile Include="ConnectionHelper.cs" />
     <Compile Include="Helpers\QrCodeHelper.cs" />
+    <Compile Include="Helpers\QrActWordDocumentService.cs" />
+    <Compile Include="Helpers\ProductLifecycleValidation.cs" />
+    <Compile Include="Helpers\QrWordTemplateHelper.cs" />
     <Compile Include="Helpers\UsbHelper.cs" />
     <Compile Include="Helpers\StandsStateHelper.cs" />
     <Compile Include="Helpers\InputDialogHelper.cs" />
@@ -317,6 +335,7 @@
     <Compile Include="Helpers\BridgeLogClient.cs" />
     <Compile Include="Helpers\BridgeExcelReportHelper.cs" />
     <Compile Include="Helpers\ExcelReportHelper.cs" />
+    <Compile Include="Helpers\ExceptionDisplay.cs" />
     <Compile Include="Helpers\FaultDescriptionHelper.cs" />
     <Compile Include="Helpers\NonConformityLabelHelper.cs" />
     <Compile Include="Helpers\LocalSecretProtector.cs" />

@@ -39,6 +39,9 @@ namespace SaveData1
             this.tabPageActionsAdmin = new System.Windows.Forms.TabPage();
             this.btnChangeStatus = new System.Windows.Forms.Button();
             this.tabPageActionsTester = new System.Windows.Forms.TabPage();
+            this.tabPageActionsControl = new System.Windows.Forms.TabPage();
+            this.btnQualityControlOpen = new System.Windows.Forms.Button();
+            this.btnPostTestingShip = new System.Windows.Forms.Button();
             this.btnBridgeTesting = new System.Windows.Forms.Button();
             this.btnCrossPlateTesting = new System.Windows.Forms.Button();
             this.btnAdvancedTesting = new System.Windows.Forms.Button();
@@ -104,6 +107,9 @@ namespace SaveData1
             this.dgvStatsByDefect = new System.Windows.Forms.DataGridView();
             this.grpStatsByStage = new System.Windows.Forms.GroupBox();
             this.dgvStatsByStage = new System.Windows.Forms.DataGridView();
+            this.tabAdminProductionStages = new System.Windows.Forms.TabPage();
+            this.btnRefreshProductionStages = new System.Windows.Forms.Button();
+            this.dgvProductionStages = new System.Windows.Forms.DataGridView();
             this.splitAdmin = new System.Windows.Forms.SplitContainer();
             this.panelTop = new System.Windows.Forms.Panel();
             this.btnLogout = new System.Windows.Forms.Button();
@@ -120,6 +126,7 @@ namespace SaveData1
             this.tabPageActionsGeneral.SuspendLayout();
             this.tabPageActionsAdmin.SuspendLayout();
             this.tabPageActionsTester.SuspendLayout();
+            this.tabPageActionsControl.SuspendLayout();
             this.tabControlWork.SuspendLayout();
             this.panelFilters.SuspendLayout();
             this.tabAdmin.SuspendLayout();
@@ -140,6 +147,8 @@ namespace SaveData1
             ((System.ComponentModel.ISupportInitialize)(this.dgvStatsByDefect)).BeginInit();
             this.grpStatsByStage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvStatsByStage)).BeginInit();
+            this.tabAdminProductionStages.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvProductionStages)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.splitAdmin)).BeginInit();
             this.splitAdmin.SuspendLayout();
             this.panelTop.SuspendLayout();
@@ -286,6 +295,7 @@ namespace SaveData1
             this.tabControlActions.Controls.Add(this.tabPageActionsGeneral);
             this.tabControlActions.Controls.Add(this.tabPageActionsAdmin);
             this.tabControlActions.Controls.Add(this.tabPageActionsTester);
+            this.tabControlActions.Controls.Add(this.tabPageActionsControl);
             this.tabControlActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControlActions.Location = new System.Drawing.Point(5, 5);
             this.tabControlActions.Name = "tabControlActions";
@@ -433,6 +443,38 @@ namespace SaveData1
             this.btnAdvancedTesting.Text = "Тестирование полетников";
             this.btnAdvancedTesting.UseVisualStyleBackColor = true;
             this.btnAdvancedTesting.Click += new System.EventHandler(this.btnAdvancedTesting_Click);
+            // 
+            // tabPageActionsControl
+            // 
+            this.tabPageActionsControl.Controls.Add(this.btnPostTestingShip);
+            this.tabPageActionsControl.Controls.Add(this.btnQualityControlOpen);
+            this.tabPageActionsControl.Location = new System.Drawing.Point(4, 26);
+            this.tabPageActionsControl.Name = "tabPageActionsControl";
+            this.tabPageActionsControl.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPageActionsControl.Size = new System.Drawing.Size(850, 43);
+            this.tabPageActionsControl.TabIndex = 3;
+            this.tabPageActionsControl.Text = "Контроль";
+            this.tabPageActionsControl.UseVisualStyleBackColor = true;
+            // 
+            // btnQualityControlOpen
+            // 
+            this.btnQualityControlOpen.Location = new System.Drawing.Point(6, 4);
+            this.btnQualityControlOpen.Name = "btnQualityControlOpen";
+            this.btnQualityControlOpen.Size = new System.Drawing.Size(160, 28);
+            this.btnQualityControlOpen.TabIndex = 0;
+            this.btnQualityControlOpen.Text = "Контроль";
+            this.btnQualityControlOpen.UseVisualStyleBackColor = true;
+            this.btnQualityControlOpen.Click += new System.EventHandler(this.btnQualityControlOpen_Click);
+            // 
+            // btnPostTestingShip
+            // 
+            this.btnPostTestingShip.Location = new System.Drawing.Point(172, 4);
+            this.btnPostTestingShip.Name = "btnPostTestingShip";
+            this.btnPostTestingShip.Size = new System.Drawing.Size(160, 28);
+            this.btnPostTestingShip.TabIndex = 1;
+            this.btnPostTestingShip.Text = "Отгрузить";
+            this.btnPostTestingShip.UseVisualStyleBackColor = true;
+            this.btnPostTestingShip.Click += new System.EventHandler(this.btnPostTestingShip_Click);
             // 
             // tabControlWork
             // 
@@ -650,6 +692,7 @@ namespace SaveData1
             this.adminTabControl.Controls.Add(this.tabAdminNoAct);
             this.adminTabControl.Controls.Add(this.tabAdminActs);
             this.adminTabControl.Controls.Add(this.tabAdminStatistics);
+            this.adminTabControl.Controls.Add(this.tabAdminProductionStages);
             this.adminTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.adminTabControl.Location = new System.Drawing.Point(0, 0);
             this.adminTabControl.Name = "adminTabControl";
@@ -1115,6 +1158,45 @@ namespace SaveData1
             this.dgvStatsByStage.Size = new System.Drawing.Size(1062, 196);
             this.dgvStatsByStage.TabIndex = 0;
             // 
+            // tabAdminProductionStages
+            // 
+            this.tabAdminProductionStages.Controls.Add(this.btnRefreshProductionStages);
+            this.tabAdminProductionStages.Controls.Add(this.dgvProductionStages);
+            this.tabAdminProductionStages.Location = new System.Drawing.Point(4, 26);
+            this.tabAdminProductionStages.Name = "tabAdminProductionStages";
+            this.tabAdminProductionStages.Padding = new System.Windows.Forms.Padding(5);
+            this.tabAdminProductionStages.Size = new System.Drawing.Size(1084, 605);
+            this.tabAdminProductionStages.TabIndex = 4;
+            this.tabAdminProductionStages.Text = "Сводка по этапам";
+            this.tabAdminProductionStages.UseVisualStyleBackColor = true;
+            // 
+            // btnRefreshProductionStages
+            // 
+            this.btnRefreshProductionStages.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnRefreshProductionStages.Location = new System.Drawing.Point(950, 8);
+            this.btnRefreshProductionStages.Name = "btnRefreshProductionStages";
+            this.btnRefreshProductionStages.Size = new System.Drawing.Size(126, 28);
+            this.btnRefreshProductionStages.TabIndex = 1;
+            this.btnRefreshProductionStages.Text = "Обновить";
+            this.btnRefreshProductionStages.UseVisualStyleBackColor = true;
+            this.btnRefreshProductionStages.Click += new System.EventHandler(this.btnRefreshProductionStages_Click);
+            // 
+            // dgvProductionStages
+            // 
+            this.dgvProductionStages.AllowUserToAddRows = false;
+            this.dgvProductionStages.AllowUserToDeleteRows = false;
+            this.dgvProductionStages.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.dgvProductionStages.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.dgvProductionStages.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvProductionStages.Location = new System.Drawing.Point(8, 42);
+            this.dgvProductionStages.Name = "dgvProductionStages";
+            this.dgvProductionStages.ReadOnly = true;
+            this.dgvProductionStages.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            this.dgvProductionStages.Size = new System.Drawing.Size(1068, 555);
+            this.dgvProductionStages.TabIndex = 0;
+            // 
             // splitAdmin
             // 
             this.splitAdmin.Location = new System.Drawing.Point(0, 0);
@@ -1167,6 +1249,7 @@ namespace SaveData1
             this.tabPageActionsGeneral.ResumeLayout(false);
             this.tabPageActionsAdmin.ResumeLayout(false);
             this.tabPageActionsTester.ResumeLayout(false);
+            this.tabPageActionsControl.ResumeLayout(false);
             this.tabControlWork.ResumeLayout(false);
             this.panelFilters.ResumeLayout(false);
             this.panelFilters.PerformLayout();
@@ -1191,6 +1274,8 @@ namespace SaveData1
             ((System.ComponentModel.ISupportInitialize)(this.dgvStatsByDefect)).EndInit();
             this.grpStatsByStage.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dgvStatsByStage)).EndInit();
+            this.tabAdminProductionStages.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.dgvProductionStages)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.splitAdmin)).EndInit();
             this.splitAdmin.ResumeLayout(false);
             this.panelTop.ResumeLayout(false);
@@ -1235,6 +1320,9 @@ namespace SaveData1
         private System.Windows.Forms.TabPage tabPageActionsGeneral;
         private System.Windows.Forms.TabPage tabPageActionsAdmin;
         private System.Windows.Forms.TabPage tabPageActionsTester;
+        private System.Windows.Forms.TabPage tabPageActionsControl;
+        private System.Windows.Forms.Button btnQualityControlOpen;
+        private System.Windows.Forms.Button btnPostTestingShip;
         private System.Windows.Forms.Button btnSaveChanges;
         private System.Windows.Forms.Button btnChangeStatus;
         private System.Windows.Forms.Button btnExportExcel;
@@ -1251,6 +1339,9 @@ namespace SaveData1
         private System.Windows.Forms.TabPage tabAdminNoAct;
         private System.Windows.Forms.TabPage tabAdminActs;
         private System.Windows.Forms.TabPage tabAdminStatistics;
+        private System.Windows.Forms.TabPage tabAdminProductionStages;
+        private System.Windows.Forms.DataGridView dgvProductionStages;
+        private System.Windows.Forms.Button btnRefreshProductionStages;
         private System.Windows.Forms.GroupBox grpStatsByStage;
         private System.Windows.Forms.DataGridView dgvStatsByStage;
         private System.Windows.Forms.GroupBox grpStatsByDefect;

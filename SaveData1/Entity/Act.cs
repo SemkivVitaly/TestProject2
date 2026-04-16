@@ -17,8 +17,8 @@ namespace SaveData1.Entity
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
         public Act()
         {
-            this.Product = new HashSet<Product>();
             this.BridgeLogSave = new HashSet<BridgeLogSave>();
+            this.Product = new HashSet<Product>();
         }
     
         public int ActID { get; set; }
@@ -26,8 +26,8 @@ namespace SaveData1.Entity
         public bool IsReady { get; set; }
     
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public virtual ICollection<Product> Product { get; set; }
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<BridgeLogSave> BridgeLogSave { get; set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public virtual ICollection<Product> Product { get; set; }
     }
 }

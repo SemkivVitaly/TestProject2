@@ -17,12 +17,15 @@ namespace SaveData1.Entity
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
         public UsersProfile()
         {
+            this.BridgeLogSave = new HashSet<BridgeLogSave>();
             this.Inspection = new HashSet<Inspection>();
+            this.Product = new HashSet<Product>();
+            this.Product1 = new HashSet<Product>();
+            this.Product2 = new HashSet<Product>();
             this.TechnicalMapAssembly = new HashSet<TechnicalMapAssembly>();
             this.TechnicalMapTesting = new HashSet<TechnicalMapTesting>();
             this.TechnicalMatFlight = new HashSet<TechnicalMatFlight>();
             this.UserWithPermissions = new HashSet<UserWithPermissions>();
-            this.BridgeLogSave = new HashSet<BridgeLogSave>();
         }
     
         public int UserID { get; set; }
@@ -32,7 +35,15 @@ namespace SaveData1.Entity
         public int RoleID { get; set; }
     
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public virtual ICollection<BridgeLogSave> BridgeLogSave { get; set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<Inspection> Inspection { get; set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public virtual ICollection<Product> Product { get; set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public virtual ICollection<Product> Product1 { get; set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public virtual ICollection<Product> Product2 { get; set; }
         public virtual Role Role { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<TechnicalMapAssembly> TechnicalMapAssembly { get; set; }
@@ -42,7 +53,5 @@ namespace SaveData1.Entity
         public virtual ICollection<TechnicalMatFlight> TechnicalMatFlight { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<UserWithPermissions> UserWithPermissions { get; set; }
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public virtual ICollection<BridgeLogSave> BridgeLogSave { get; set; }
     }
 }
