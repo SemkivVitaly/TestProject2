@@ -372,22 +372,12 @@ namespace SaveData1.CrossPlateTesting.Services
 
         private bool IsConnectedToWifi(string ssid)
         {
+            if (string.IsNullOrWhiteSpace(ssid)) return false;
             try
             {
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "netsh",
-                    Arguments = "wlan show interfaces",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true
-                };
-                using (var p = Process.Start(startInfo))
-                {
-                    string output = p?.StandardOutput.ReadToEnd() ?? "";
-                    p?.WaitForExit(5000);
-                    return output.IndexOf(ssid, StringComparison.OrdinalIgnoreCase) >= 0;
-                }
+                string current = WifiInfoService.GetCurrentSsid();
+                if (string.IsNullOrEmpty(current)) return false;
+                return string.Equals(current, ssid, StringComparison.OrdinalIgnoreCase);
             }
             catch
             {
@@ -506,7 +496,7 @@ namespace SaveData1.CrossPlateTesting.Services
                 _log("[MAVLink] Ожидание подключения к дрону (heartbeat)...");
                 int mavTimeoutMs = Math.Max(5000, config.ConnectionTimeoutSeconds * 1000);
 
-                bool ok = await MavLinkService.CheckConnectionAsync(host, port, mavTimeoutMs);
+                bool ok = await MavLinkService.CheckConnectionAsync(host, port, mavTimeoutMs, _cts?.Token ?? CancellationToken.None);
                 if (ok)
                     _log("[MAVLink] Подключение к дрону установлено, получен ответ.");
                 else
@@ -601,7 +591,7 @@ namespace SaveData1.CrossPlateTesting.Services
             }
 
             _log($"[MAVLink] Выполнение скрипта: {Path.GetFileName(config.ScriptPath)}");
-            bool ok = await ScriptNodeTreeExecutor.RunFromFileAsync(config.ScriptPath, host, port, _log, _cts.Token);
+            bool ok = await ScriptNodeTreeExecutor.RunFromFileAsync(config.ScriptPath, host, port, _log, _cts?.Token ?? CancellationToken.None);
             if (ok)
                 _log("[MAVLink] Скрипт параметров выполнен.");
             return ok;
@@ -701,7 +691,7 @@ namespace SaveData1.CrossPlateTesting.Services
                                 var addrs = config.DronePingAddress.Split(new[] { ';', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
                                 if (addrs.Length > 0) host = addrs[0].Trim();
                             }
-                            success = await ScriptNodeTreeExecutor.RunFromFileAsync(config.ScriptPath, host, port, _log, _cts.Token);
+                            success = await ScriptNodeTreeExecutor.RunFromFileAsync(config.ScriptPath, host, port, _log, _cts?.Token ?? CancellationToken.None);
                         }
                         else if (hasExecutableScript)
                         {
@@ -777,7 +767,8 @@ namespace SaveData1.CrossPlateTesting.Services
                 using (var process = Process.Start(startInfo))
                 {
                     _log("[Скрипт] Скрипт запущен успешно.");
-                    await Task.Run(() => process?.WaitForExit(120000), _cts.Token);
+                    var token = _cts?.Token ?? CancellationToken.None;
+                    await Task.Run(() => process?.WaitForExit(120000), token);
                     return true;
                 }
             }

@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <edmx:Edmx Version="3.0" xmlns:edmx="http://schemas.microsoft.com/ado/2009/11/edmx">
   <!-- EF Runtime content -->
   <edmx:Runtime>
     <!-- SSDL content -->
     <edmx:StorageModels>
-      <Schema Namespace="Хранилище SaveDataModel" Provider="System.Data.SqlClient" ProviderManifestToken="2012" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
+    <Schema Namespace="Хранилище SaveDataModel" Provider="System.Data.SqlClient" ProviderManifestToken="2012" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
         <EntityType Name="Act">
           <Key>
             <PropertyRef Name="ActID" />
@@ -110,6 +110,24 @@
           <Property Name="AssemblyManualUnlockByUserID" Type="int" />
           <Property Name="AssemblyManualUnlockUtc" Type="datetime2" Precision="7" />
         </EntityType>
+        <EntityType Name="ProductPhoto">
+          <Key>
+            <PropertyRef Name="ProductPhotoID" />
+          </Key>
+          <Property Name="ProductPhotoID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="ProductID" Type="int" Nullable="false" />
+          <Property Name="SequenceNo" Type="int" Nullable="false" />
+          <Property Name="Stage" Type="tinyint" Nullable="false" />
+          <Property Name="TMAID" Type="int" />
+          <Property Name="TMTID" Type="int" />
+          <Property Name="FileName" Type="nvarchar" MaxLength="260" Nullable="false" />
+          <Property Name="RelativePath" Type="nvarchar" MaxLength="500" Nullable="false" />
+          <Property Name="ContentType" Type="nvarchar" MaxLength="100" Nullable="false" />
+          <Property Name="ByteLength" Type="int" Nullable="false" />
+          <Property Name="PhotoBytes" Type="varbinary(max)" Nullable="false" />
+          <Property Name="SavedUtc" Type="datetime2" Precision="7" Nullable="false" />
+          <Property Name="ByUserID" Type="int" Nullable="false" />
+        </EntityType>
         <EntityType Name="ProducType">
           <Key>
             <PropertyRef Name="TypeID" />
@@ -130,7 +148,7 @@
             <PropertyRef Name="RoleID" />
           </Key>
           <Property Name="RoleID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
-          <Property Name="RoleName" Type="nvarchar" MaxLength="25" />
+          <Property Name="RoleName" Type="nvarchar" MaxLength="25" Nullable="false" />
         </EntityType>
         <EntityType Name="SavePath">
           <Key>
@@ -138,7 +156,7 @@
           </Key>
           <Property Name="SavePath" Type="nvarchar(max)" Nullable="false" />
           <Property Name="PathID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
-          <Property Name="ActNumber" Type="nvarchar(max)" />
+          <Property Name="ActNumber" Type="nvarchar" MaxLength="128" Nullable="false" />
         </EntityType>
         <EntityType Name="sysdiagrams">
           <Key>
@@ -232,7 +250,7 @@
           <Property Name="UserID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
           <Property Name="UserName" Type="nvarchar" MaxLength="50" Nullable="false" />
           <Property Name="UserLogin" Type="nvarchar" MaxLength="50" Nullable="false" />
-          <Property Name="UserPassword" Type="nvarchar(max)" Nullable="false" />
+          <Property Name="UserPassword" Type="nvarchar" MaxLength="256" Nullable="false" />
           <Property Name="RoleID" Type="int" Nullable="false" />
         </EntityType>
         <EntityType Name="UserWithPermissions">
@@ -427,6 +445,18 @@
             </Dependent>
           </ReferentialConstraint>
         </Association>
+        <Association Name="FK_Product_AssemblyManualUnlockByUser_UsersProfile">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="0..1" />
+          <End Role="Product" Type="Self.Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="AssemblyManualUnlockByUserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
         <Association Name="FK_Product_PostTestingWarehouseByUser_UsersProfile">
           <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="0..1" />
           <End Role="Product" Type="Self.Product" Multiplicity="*" />
@@ -472,6 +502,54 @@
             </Principal>
             <Dependent Role="Product">
               <PropertyRef Name="TestingManualUnlockByUserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ProductPhoto_Product">
+          <End Role="Product" Type="Self.Product" Multiplicity="1" />
+          <End Role="ProductPhoto" Type="Self.ProductPhoto" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Product">
+              <PropertyRef Name="ProductID" />
+            </Principal>
+            <Dependent Role="ProductPhoto">
+              <PropertyRef Name="ProductID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ProductPhoto_TMA">
+          <End Role="TechnicalMapAssembly" Type="Self.TechnicalMapAssembly" Multiplicity="0..1" />
+          <End Role="ProductPhoto" Type="Self.ProductPhoto" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapAssembly">
+              <PropertyRef Name="TMAID" />
+            </Principal>
+            <Dependent Role="ProductPhoto">
+              <PropertyRef Name="TMAID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ProductPhoto_TMT">
+          <End Role="TechnicalMapTesting" Type="Self.TechnicalMapTesting" Multiplicity="0..1" />
+          <End Role="ProductPhoto" Type="Self.ProductPhoto" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapTesting">
+              <PropertyRef Name="TMTID" />
+            </Principal>
+            <Dependent Role="ProductPhoto">
+              <PropertyRef Name="TMTID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ProductPhoto_User">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="ProductPhoto" Type="Self.ProductPhoto" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="ProductPhoto">
+              <PropertyRef Name="ByUserID" />
             </Dependent>
           </ReferentialConstraint>
         </Association>
@@ -712,6 +790,7 @@
           <EntitySet Name="Permissions" EntityType="Self.Permissions" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="Place" EntityType="Self.Place" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="Product" EntityType="Self.Product" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="ProductPhoto" EntityType="Self.ProductPhoto" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="ProducType" EntityType="Self.ProducType" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="ResultTable" EntityType="Self.ResultTable" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="Role" EntityType="Self.Role" Schema="dbo" store:Type="Tables" />
@@ -785,6 +864,10 @@
             <End Role="Act" EntitySet="Act" />
             <End Role="Product" EntitySet="Product" />
           </AssociationSet>
+          <AssociationSet Name="FK_Product_AssemblyManualUnlockByUser_UsersProfile" Association="Self.FK_Product_AssemblyManualUnlockByUser_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
           <AssociationSet Name="FK_Product_PostTestingWarehouseByUser_UsersProfile" Association="Self.FK_Product_PostTestingWarehouseByUser_UsersProfile">
             <End Role="UsersProfile" EntitySet="UsersProfile" />
             <End Role="Product" EntitySet="Product" />
@@ -800,6 +883,22 @@
           <AssociationSet Name="FK_Product_TestingManualUnlockByUser_UsersProfile" Association="Self.FK_Product_TestingManualUnlockByUser_UsersProfile">
             <End Role="UsersProfile" EntitySet="UsersProfile" />
             <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ProductPhoto_Product" Association="Self.FK_ProductPhoto_Product">
+            <End Role="Product" EntitySet="Product" />
+            <End Role="ProductPhoto" EntitySet="ProductPhoto" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ProductPhoto_TMA" Association="Self.FK_ProductPhoto_TMA">
+            <End Role="TechnicalMapAssembly" EntitySet="TechnicalMapAssembly" />
+            <End Role="ProductPhoto" EntitySet="ProductPhoto" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ProductPhoto_TMT" Association="Self.FK_ProductPhoto_TMT">
+            <End Role="TechnicalMapTesting" EntitySet="TechnicalMapTesting" />
+            <End Role="ProductPhoto" EntitySet="ProductPhoto" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ProductPhoto_User" Association="Self.FK_ProductPhoto_User">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="ProductPhoto" EntitySet="ProductPhoto" />
           </AssociationSet>
           <AssociationSet Name="FK_ProducType_Country" Association="Self.FK_ProducType_Country">
             <End Role="Country" EntitySet="Country" />
@@ -866,8 +965,7 @@
             <End Role="UserWithPermissions" EntitySet="UserWithPermissions" />
           </AssociationSet>
         </EntityContainer>
-      </Schema>
-    </edmx:StorageModels>
+      </Schema></edmx:StorageModels>
     <!-- CSDL content -->
     <edmx:ConceptualModels>
       <Schema Namespace="SaveDataModel" Alias="Self" annotation:UseStrongSpatialTypes="false" xmlns:annotation="http://schemas.microsoft.com/ado/2009/02/edm/annotation" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm">
@@ -990,6 +1088,8 @@
           <NavigationProperty Name="UsersProfile2" Relationship="Self.FK_Product_TestingManualUnlockByUser_UsersProfile" FromRole="Product" ToRole="UsersProfile" />
           <NavigationProperty Name="TechnicalMapFull" Relationship="Self.FK_TechnicalMapFull_Product" FromRole="Product" ToRole="TechnicalMapFull" />
           <NavigationProperty Name="TechnicalMatFlight" Relationship="Self.FK_TechnicalMatFlight_Product" FromRole="Product" ToRole="TechnicalMatFlight" />
+          <NavigationProperty Name="UsersProfile3" Relationship="SaveDataModel.FK_Product_AssemblyManualUnlockByUser_UsersProfile" FromRole="Product" ToRole="UsersProfile" />
+          <NavigationProperty Name="ProductPhoto" Relationship="SaveDataModel.FK_ProductPhoto_Product" FromRole="Product" ToRole="ProductPhoto" />
         </EntityType>
         <EntityType Name="ProducType">
           <Key>
@@ -1015,7 +1115,7 @@
             <PropertyRef Name="RoleID" />
           </Key>
           <Property Name="RoleID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
-          <Property Name="RoleName" Type="String" MaxLength="25" FixedLength="false" Unicode="true" />
+          <Property Name="RoleName" Type="String" MaxLength="25" FixedLength="false" Unicode="true" Nullable="false" />
           <NavigationProperty Name="UsersProfile" Relationship="Self.FK_UsersProfile_Role1" FromRole="Role" ToRole="UsersProfile" />
         </EntityType>
         <EntityType Name="SavePath">
@@ -1024,7 +1124,7 @@
           </Key>
           <Property Name="SavePath1" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" Nullable="false" />
           <Property Name="PathID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
-          <Property Name="ActNumber" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" />
+          <Property Name="ActNumber" Type="String" MaxLength="128" FixedLength="false" Unicode="true" Nullable="false" />
         </EntityType>
         <EntityType Name="sysdiagrams">
           <Key>
@@ -1054,6 +1154,7 @@
           <NavigationProperty Name="TechnicalMapFull" Relationship="Self.FK_TechnicalMapAssembly_TechnicalMapFull" FromRole="TechnicalMapAssembly" ToRole="TechnicalMapFull" />
           <NavigationProperty Name="UsersProfile" Relationship="Self.FK_TechnicalMapAssembly_UsersProfile" FromRole="TechnicalMapAssembly" ToRole="UsersProfile" />
           <NavigationProperty Name="Description1" Relationship="Self.AssemblyFaultDescription" FromRole="TechnicalMapAssembly" ToRole="Description" />
+          <NavigationProperty Name="ProductPhoto" Relationship="SaveDataModel.FK_ProductPhoto_TMA" FromRole="TechnicalMapAssembly" ToRole="ProductPhoto" />
         </EntityType>
         <EntityType Name="TechnicalMapFull">
           <Key>
@@ -1085,6 +1186,7 @@
           <NavigationProperty Name="TechnicalMapFull" Relationship="Self.FK_TechnicalMapTesting_TechnicalMapFull" FromRole="TechnicalMapTesting" ToRole="TechnicalMapFull" />
           <NavigationProperty Name="UsersProfile" Relationship="Self.FK_TechnicalMapTesting_UsersProfile" FromRole="TechnicalMapTesting" ToRole="UsersProfile" />
           <NavigationProperty Name="Description1" Relationship="Self.TestingFaultDescription" FromRole="TechnicalMapTesting" ToRole="Description" />
+          <NavigationProperty Name="ProductPhoto" Relationship="SaveDataModel.FK_ProductPhoto_TMT" FromRole="TechnicalMapTesting" ToRole="ProductPhoto" />
         </EntityType>
         <EntityType Name="TechnicalMatFlight">
           <Key>
@@ -1126,7 +1228,7 @@
           <Property Name="UserID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
           <Property Name="UserName" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
           <Property Name="UserLogin" Type="String" MaxLength="50" FixedLength="false" Unicode="true" Nullable="false" />
-          <Property Name="UserPassword" Type="String" MaxLength="Max" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="UserPassword" Type="String" MaxLength="256" FixedLength="false" Unicode="true" Nullable="false" />
           <Property Name="RoleID" Type="Int32" Nullable="false" />
           <NavigationProperty Name="BridgeLogSave" Relationship="Self.FK_BridgeLogSave_UsersProfile" FromRole="UsersProfile" ToRole="BridgeLogSave" />
           <NavigationProperty Name="Inspection" Relationship="Self.FK_Inspection_UsersProfile" FromRole="UsersProfile" ToRole="Inspection" />
@@ -1138,6 +1240,8 @@
           <NavigationProperty Name="TechnicalMapTesting" Relationship="Self.FK_TechnicalMapTesting_UsersProfile" FromRole="UsersProfile" ToRole="TechnicalMapTesting" />
           <NavigationProperty Name="TechnicalMatFlight" Relationship="Self.FK_TechnicalMatFlight_UsersProfile" FromRole="UsersProfile" ToRole="TechnicalMatFlight" />
           <NavigationProperty Name="UserWithPermissions" Relationship="Self.FK_UserWithPermissions_UsersProfile" FromRole="UsersProfile" ToRole="UserWithPermissions" />
+          <NavigationProperty Name="Product3" Relationship="SaveDataModel.FK_Product_AssemblyManualUnlockByUser_UsersProfile" FromRole="UsersProfile" ToRole="Product" />
+          <NavigationProperty Name="ProductPhoto" Relationship="SaveDataModel.FK_ProductPhoto_User" FromRole="UsersProfile" ToRole="ProductPhoto" />
         </EntityType>
         <EntityType Name="UserWithPermissions">
           <Key>
@@ -1689,6 +1793,27 @@
             <Parameter Name="new_diagramname" Mode="In" Type="String" />
           </FunctionImport>
           <FunctionImport Name="sp_upgraddiagrams" />
+          <EntitySet Name="ProductPhoto" EntityType="SaveDataModel.ProductPhoto" />
+          <AssociationSet Name="FK_Product_AssemblyManualUnlockByUser_UsersProfile" Association="SaveDataModel.FK_Product_AssemblyManualUnlockByUser_UsersProfile">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="Product" EntitySet="Product" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ProductPhoto_Product" Association="SaveDataModel.FK_ProductPhoto_Product">
+            <End Role="Product" EntitySet="Product" />
+            <End Role="ProductPhoto" EntitySet="ProductPhoto" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ProductPhoto_TMA" Association="SaveDataModel.FK_ProductPhoto_TMA">
+            <End Role="TechnicalMapAssembly" EntitySet="TechnicalMapAssembly" />
+            <End Role="ProductPhoto" EntitySet="ProductPhoto" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ProductPhoto_TMT" Association="SaveDataModel.FK_ProductPhoto_TMT">
+            <End Role="TechnicalMapTesting" EntitySet="TechnicalMapTesting" />
+            <End Role="ProductPhoto" EntitySet="ProductPhoto" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ProductPhoto_User" Association="SaveDataModel.FK_ProductPhoto_User">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="ProductPhoto" EntitySet="ProductPhoto" />
+          </AssociationSet>
         </EntityContainer>
         <ComplexType Name="sp_helpdiagramdefinition_Result">
           <Property Type="Int32" Name="version" Nullable="true" />
@@ -1701,6 +1826,88 @@
           <Property Type="String" Name="Owner" Nullable="true" MaxLength="128" />
           <Property Type="Int32" Name="OwnerID" Nullable="false" />
         </ComplexType>
+        <EntityType Name="ProductPhoto">
+          <Key>
+            <PropertyRef Name="ProductPhotoID" />
+          </Key>
+          <Property Name="ProductPhotoID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="ProductID" Type="Int32" Nullable="false" />
+          <Property Name="SequenceNo" Type="Int32" Nullable="false" />
+          <Property Name="Stage" Type="Byte" Nullable="false" />
+          <Property Name="TMAID" Type="Int32" />
+          <Property Name="TMTID" Type="Int32" />
+          <Property Name="FileName" Type="String" Nullable="false" MaxLength="260" FixedLength="false" Unicode="true" />
+          <Property Name="RelativePath" Type="String" Nullable="false" MaxLength="500" FixedLength="false" Unicode="true" />
+          <Property Name="ContentType" Type="String" Nullable="false" MaxLength="100" FixedLength="false" Unicode="true" />
+          <Property Name="ByteLength" Type="Int32" Nullable="false" />
+          <Property Name="PhotoBytes" Type="Binary" Nullable="false" MaxLength="Max" FixedLength="false" />
+          <Property Name="SavedUtc" Type="DateTime" Nullable="false" Precision="7" />
+          <Property Name="ByUserID" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="Product" Relationship="SaveDataModel.FK_ProductPhoto_Product" FromRole="ProductPhoto" ToRole="Product" />
+          <NavigationProperty Name="TechnicalMapAssembly" Relationship="SaveDataModel.FK_ProductPhoto_TMA" FromRole="ProductPhoto" ToRole="TechnicalMapAssembly" />
+          <NavigationProperty Name="TechnicalMapTesting" Relationship="SaveDataModel.FK_ProductPhoto_TMT" FromRole="ProductPhoto" ToRole="TechnicalMapTesting" />
+          <NavigationProperty Name="UsersProfile" Relationship="SaveDataModel.FK_ProductPhoto_User" FromRole="ProductPhoto" ToRole="UsersProfile" />
+        </EntityType>
+        <Association Name="FK_Product_AssemblyManualUnlockByUser_UsersProfile">
+          <End Type="SaveDataModel.UsersProfile" Role="UsersProfile" Multiplicity="0..1" />
+          <End Type="SaveDataModel.Product" Role="Product" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="Product">
+              <PropertyRef Name="AssemblyManualUnlockByUserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ProductPhoto_Product">
+          <End Type="SaveDataModel.Product" Role="Product" Multiplicity="1" />
+          <End Type="SaveDataModel.ProductPhoto" Role="ProductPhoto" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Product">
+              <PropertyRef Name="ProductID" />
+            </Principal>
+            <Dependent Role="ProductPhoto">
+              <PropertyRef Name="ProductID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ProductPhoto_TMA">
+          <End Type="SaveDataModel.TechnicalMapAssembly" Role="TechnicalMapAssembly" Multiplicity="0..1" />
+          <End Type="SaveDataModel.ProductPhoto" Role="ProductPhoto" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapAssembly">
+              <PropertyRef Name="TMAID" />
+            </Principal>
+            <Dependent Role="ProductPhoto">
+              <PropertyRef Name="TMAID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ProductPhoto_TMT">
+          <End Type="SaveDataModel.TechnicalMapTesting" Role="TechnicalMapTesting" Multiplicity="0..1" />
+          <End Type="SaveDataModel.ProductPhoto" Role="ProductPhoto" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="TechnicalMapTesting">
+              <PropertyRef Name="TMTID" />
+            </Principal>
+            <Dependent Role="ProductPhoto">
+              <PropertyRef Name="TMTID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ProductPhoto_User">
+          <End Type="SaveDataModel.UsersProfile" Role="UsersProfile" Multiplicity="1" />
+          <End Type="SaveDataModel.ProductPhoto" Role="ProductPhoto" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="ProductPhoto">
+              <PropertyRef Name="ByUserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
       </Schema>
     </edmx:ConceptualModels>
     <!-- C-S mapping content -->
@@ -1990,6 +2197,25 @@
           </FunctionImportMapping>
           <FunctionImportMapping FunctionImportName="sp_renamediagram" FunctionName="Хранилище SaveDataModel.sp_renamediagram" />
           <FunctionImportMapping FunctionImportName="sp_upgraddiagrams" FunctionName="Хранилище SaveDataModel.sp_upgraddiagrams" />
+          <EntitySetMapping Name="ProductPhoto">
+            <EntityTypeMapping TypeName="SaveDataModel.ProductPhoto">
+              <MappingFragment StoreEntitySet="ProductPhoto">
+                <ScalarProperty Name="ByUserID" ColumnName="ByUserID" />
+                <ScalarProperty Name="SavedUtc" ColumnName="SavedUtc" />
+                <ScalarProperty Name="PhotoBytes" ColumnName="PhotoBytes" />
+                <ScalarProperty Name="ByteLength" ColumnName="ByteLength" />
+                <ScalarProperty Name="ContentType" ColumnName="ContentType" />
+                <ScalarProperty Name="RelativePath" ColumnName="RelativePath" />
+                <ScalarProperty Name="FileName" ColumnName="FileName" />
+                <ScalarProperty Name="TMTID" ColumnName="TMTID" />
+                <ScalarProperty Name="TMAID" ColumnName="TMAID" />
+                <ScalarProperty Name="Stage" ColumnName="Stage" />
+                <ScalarProperty Name="SequenceNo" ColumnName="SequenceNo" />
+                <ScalarProperty Name="ProductID" ColumnName="ProductID" />
+                <ScalarProperty Name="ProductPhotoID" ColumnName="ProductPhotoID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
         </EntityContainerMapping>
       </Mapping>
     </edmx:Mappings>

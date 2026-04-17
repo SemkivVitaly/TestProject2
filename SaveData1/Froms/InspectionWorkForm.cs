@@ -76,7 +76,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки данных: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки данных");
             }
         }
 
@@ -94,7 +94,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки описаний: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки описаний");
             }
         }
 
@@ -112,7 +112,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки результатов: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки результатов");
             }
         }
 
@@ -209,7 +209,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка сохранения: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка сохранения");
             }
         }
 

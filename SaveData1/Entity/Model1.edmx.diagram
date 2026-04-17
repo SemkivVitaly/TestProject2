@@ -58,6 +58,12 @@
         <AssociationConnector Association="SaveDataModel.AssemblyFaultDescription" ManuallyRouted="false" />
         <AssociationConnector Association="SaveDataModel.ErrorDescription" ManuallyRouted="false" />
         <AssociationConnector Association="SaveDataModel.TestingFaultDescription" ManuallyRouted="false" />
+        <EntityTypeShape EntityType="SaveDataModel.ProductPhoto" Width="1.5" PointX="16" PointY="10.75" />
+        <AssociationConnector Association="SaveDataModel.FK_Product_AssemblyManualUnlockByUser_UsersProfile" />
+        <AssociationConnector Association="SaveDataModel.FK_ProductPhoto_Product" />
+        <AssociationConnector Association="SaveDataModel.FK_ProductPhoto_TMA" />
+        <AssociationConnector Association="SaveDataModel.FK_ProductPhoto_TMT" />
+        <AssociationConnector Association="SaveDataModel.FK_ProductPhoto_User" />
       </Diagram>
     </edmx:Diagrams>
   </edmx:Designer>

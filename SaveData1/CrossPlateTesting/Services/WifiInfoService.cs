@@ -62,7 +62,8 @@ namespace SaveData1.CrossPlateTesting.Services
                     string output = p?.StandardOutput.ReadToEnd() ?? "";
                     p?.WaitForExit(10000);
 
-                    var matches = Regex.Matches(output, @"SSID\s+\d+\s*:\s*(.+)", RegexOptions.IgnoreCase);
+                    var matches = Regex.Matches(output, @"^\s*SSID\s+\d+\s*:\s*(.+?)\s*$",
+                        RegexOptions.IgnoreCase | RegexOptions.Multiline);
                     foreach (Match m in matches)
                     {
                         if (m.Success)
@@ -74,7 +75,9 @@ namespace SaveData1.CrossPlateTesting.Services
                     }
                     if (result.Count == 0)
                     {
-                        var altMatches = Regex.Matches(output, @"SSID\s*:\s*(.+)", RegexOptions.IgnoreCase);
+                        // Fallback: строки вида "SSID: name" (но НЕ "BSSID:").
+                        var altMatches = Regex.Matches(output, @"^\s*SSID\s*:\s*(.+?)\s*$",
+                            RegexOptions.IgnoreCase | RegexOptions.Multiline);
                         foreach (Match m in altMatches)
                         {
                             if (m.Success)
@@ -118,7 +121,9 @@ namespace SaveData1.CrossPlateTesting.Services
                     string output = p?.StandardOutput.ReadToEnd() ?? "";
                     p?.WaitForExit(5000);
 
-                    var match = Regex.Match(output, @"SSID\s*:\s*(.+)", RegexOptions.IgnoreCase);
+                    // Привязка к началу строки, чтобы НЕ матчить BSSID (в выводе netsh есть обе строки "SSID:" и "BSSID:").
+                    var match = Regex.Match(output, @"^\s*SSID\s*:\s*(.+?)\s*$",
+                        RegexOptions.IgnoreCase | RegexOptions.Multiline);
                     if (match.Success)
                     {
                         return match.Groups[1].Value.Trim();

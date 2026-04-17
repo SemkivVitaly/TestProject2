@@ -70,25 +70,36 @@ namespace SaveData1.CrossPlateTesting.Services
                 {
                     if (set.IsToggle)
                     {
-                        var result = await MavLinkService.ToggleParameterAsync(host, port, set.ParamName, DelaySettings.MavLink_ParamReadTimeoutMs, log);
+                        var result = await MavLinkService.ToggleParameterAsync(host, port, set.ParamName, DelaySettings.MavLink_ParamReadTimeoutMs, log, ct);
                         if (result.HasValue)
                         {
                             paramCache[set.ParamName] = result.Value ? 1f : 0f;
                             log($"[OK] {set.ParamName} = {(result.Value ? "true" : "false")}");
                         }
-                        paramCache.Remove(set.ParamName);
+                        else
+                        {
+                            paramCache.Remove(set.ParamName);
+                            log($"[ПРЕДУПРЕЖДЕНИЕ] Toggle {set.ParamName} не подтверждён дроном.");
+                        }
                     }
                     else if (set.Value.HasValue)
                     {
-                        bool ok = await MavLinkService.SetParameterAsync(host, port, set.ParamName, set.Value.Value, 1, 1, DelaySettings.MavLink_ParamReadTimeoutMs, log);
+                        bool ok = await MavLinkService.SetParameterAsync(host, port, set.ParamName, set.Value.Value, 1, 1, DelaySettings.MavLink_ParamReadTimeoutMs, log, 9, ct);
                         if (ok)
+                        {
+                            paramCache[set.ParamName] = set.Value.Value;
                             log($"[OK] {set.ParamName} = {set.Value.Value}");
-                        paramCache.Remove(set.ParamName);
+                        }
+                        else
+                        {
+                            paramCache.Remove(set.ParamName);
+                            log($"[ПРЕДУПРЕЖДЕНИЕ] Set {set.ParamName} не подтверждён дроном.");
+                        }
                     }
                 }
                 else if (node is ReadNode read)
                 {
-                    var value = await MavLinkService.ReadParameterAsync(host, port, read.ParamName, DelaySettings.MavLink_ParamReadTimeoutMs, log);
+                    var value = await MavLinkService.ReadParameterAsync(host, port, read.ParamName, DelaySettings.MavLink_ParamReadTimeoutMs, log, ct);
                     if (value.HasValue)
                     {
                         paramCache[read.ParamName] = value.Value;
@@ -99,30 +110,34 @@ namespace SaveData1.CrossPlateTesting.Services
                 {
                     var ms = (int)(Math.Max(0, sl.Seconds) * 1000);
                     log($"[SLEEP] {sl.Seconds} сек");
-                    await Task.Delay(ms, ct);
+                    try { await Task.Delay(ms, ct); }
+                    catch (OperationCanceledException) { return false; }
                 }
                 else if (node is SetModeNode sm)
                 {
-                    var ok = await MavLinkService.SetModeAsync(host, port, sm.ModeNumber, 1, 1, log);
+                    var ok = await MavLinkService.SetModeAsync(host, port, sm.ModeNumber, 1, 1, log, ct);
                     if (ok) log($"[OK] Режим -> {sm.ModeNumber}");
                 }
                 else if (node is SleepMsNode slm)
                 {
                     var ms = Math.Max(0, slm.Milliseconds);
                     log($"[SLEEP_MS] {ms} мс");
-                    await Task.Delay(ms, ct);
+                    try { await Task.Delay(ms, ct); }
+                    catch (OperationCanceledException) { return false; }
                 }
                 else if (node is ArmNode arm)
                 {
                     var ok = arm.Arm
-                        ? await MavLinkService.ArmAsync(host, port, false, log)
-                        : await MavLinkService.DisarmAsync(host, port, false, log);
+                        ? await MavLinkService.ArmAsync(host, port, false, log, ct)
+                        : await MavLinkService.DisarmAsync(host, port, false, log, ct);
                     if (ok) log($"[OK] {(arm.Arm ? "Arm" : "Disarm")}");
+                    else log($"[ПРЕДУПРЕЖДЕНИЕ] {(arm.Arm ? "Arm" : "Disarm")} не выполнен.");
                 }
                 else if (node is SendRcNode src)
                 {
-                    var ok = await MavLinkService.SendRcOverrideAsync(host, port, src.Channel, src.Pwm, 1, 1, log);
+                    var ok = await MavLinkService.SendRcOverrideAsync(host, port, src.Channel, src.Pwm, 1, 1, log, ct);
                     if (ok) log($"[OK] RC ch{src.Channel} = {src.Pwm}");
+                    else log($"[ПРЕДУПРЕЖДЕНИЕ] RC ch{src.Channel} = {src.Pwm} не отправлен.");
                 }
                 else if (node is WaitForNode wf)
                 {
@@ -133,7 +148,7 @@ namespace SaveData1.CrossPlateTesting.Services
                 }
                 else if (node is IfNode iff)
                 {
-                    var val = await GetValue(host, port, iff.ParamName, paramCache, varStore, log);
+                    var val = await GetValue(host, port, iff.ParamName, paramCache, varStore, log, ct);
                     var compareVal = iff.CompareVarName != null && varStore.TryGetValue(iff.CompareVarName, out var cv) ? cv : iff.CompareValue;
                     bool cond = EvaluateCondition(iff.Operator, compareVal, val);
                     if (cond)
@@ -147,25 +162,29 @@ namespace SaveData1.CrossPlateTesting.Services
                     while (iterations < MaxLoopIterations)
                     {
                         if (ct.IsCancellationRequested) return false;
-                        var val = await GetValue(host, port, whilew.ParamName, paramCache, varStore, log);
+                        // Для актуальной проверки условия while перечитываем параметр с дрона, а не из кэша.
+                        paramCache.Remove(whilew.ParamName);
+                        var val = await GetValue(host, port, whilew.ParamName, paramCache, varStore, log, ct);
                         var compareVal = whilew.CompareVarName != null && varStore.TryGetValue(whilew.CompareVarName, out var wcv) ? wcv : whilew.CompareValue;
                         if (!EvaluateCondition(whilew.Operator, compareVal, val))
                             break;
                         await RunNodesAsync(whilew.Body, host, port, paramCache, varStore, log, ct);
                         iterations++;
-                        await Task.Delay(DelaySettings.Script_WhileIteration, ct);
+                        try { await Task.Delay(DelaySettings.Script_WhileIteration, ct); }
+                        catch (OperationCanceledException) { return false; }
                     }
                     if (iterations >= MaxLoopIterations)
                         log($"[ПРЕДУПРЕЖДЕНИЕ] Цикл while достиг лимита {MaxLoopIterations} итераций.");
                 }
 
-                await Task.Delay(DelaySettings.Script_BetweenNodes, ct);
+                try { await Task.Delay(DelaySettings.Script_BetweenNodes, ct); }
+                catch (OperationCanceledException) { return false; }
             }
             return true;
         }
 
         private static async Task<float?> GetValue(string host, int port, string name,
-            Dictionary<string, float?> paramCache, Dictionary<string, float> varStore, Action<string> log)
+            Dictionary<string, float?> paramCache, Dictionary<string, float> varStore, Action<string> log, CancellationToken ct = default)
         {
             if (varStore.TryGetValue(name, out var vv)) return vv;
             if (paramCache.TryGetValue(name, out var v)) return v;
@@ -173,7 +192,8 @@ namespace SaveData1.CrossPlateTesting.Services
             log($"[MAVLink] Чтение параметра '{name}'...");
             for (int attempt = 1; attempt <= 3; attempt++)
             {
-                var val = await MavLinkService.ReadParameterAsync(host, port, name, timeoutMs, log);
+                if (ct.IsCancellationRequested) return null;
+                var val = await MavLinkService.ReadParameterAsync(host, port, name, timeoutMs, log, ct);
                 if (val.HasValue)
                 {
                     paramCache[name] = val.Value;

@@ -5,14 +5,54 @@ using System.Linq;
 using System.Windows.Forms;
 using SaveData1.Entity;
 using SaveData1.Helpers;
+using SaveData1.Services;
 
 namespace SaveData1
 {
     public partial class LoginForm : Form
     {
+        private Label _lblCapsLock;
+        private Label _lblVersion;
+
         public LoginForm()
         {
             InitializeComponent();
+            InitializeExtraUi();
+        }
+
+        private void InitializeExtraUi()
+        {
+            _lblCapsLock = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = Color.DarkOrange,
+                Location = new Point(150, 117),
+                Text = "Caps Lock включён",
+                Visible = false
+            };
+            panelMain.Controls.Add(_lblCapsLock);
+
+            _lblVersion = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.Gray,
+                Text = "v. " + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "?"),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right
+            };
+            _lblVersion.Location = new Point(ClientSize.Width - _lblVersion.PreferredWidth - 8, ClientSize.Height - 20);
+            Controls.Add(_lblVersion);
+            _lblVersion.BringToFront();
+
+            txtPassword.KeyUp += (s, e) => UpdateCapsLockIndicator();
+            txtPassword.GotFocus += (s, e) => UpdateCapsLockIndicator();
+            txtPassword.LostFocus += (s, e) => { _lblCapsLock.Visible = false; };
+        }
+
+        private void UpdateCapsLockIndicator()
+        {
+            _lblCapsLock.Visible = Control.IsKeyLocked(Keys.CapsLock) && txtPassword.Focused;
         }
 
         private void chkShowPassword_CheckedChanged(object sender, EventArgs e)
@@ -99,7 +139,7 @@ namespace SaveData1
         private void btnLogin_Click(object sender, EventArgs e)
         {
             string login = txtLogin.Text.Trim();
-            string password = txtPassword.Text.Trim();
+            string password = txtPassword.Text;
 
             if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
             {
@@ -109,72 +149,66 @@ namespace SaveData1
 
             try
             {
-                using (var context = ConnectionHelper.CreateContext())
+                var user = UserPermissionsService.FindByLogin(login);
+
+                if (user == null || !PasswordHasher.Verify(password, user.UserPassword))
                 {
-                    var user = context.UsersProfile
-                        .AsNoTracking()
-                        .Include("Role")
-                        .Include("UserWithPermissions.Permissions")
-                        .FirstOrDefault<UsersProfile>(u => u.UserLogin == login);
+                    lblError.Text = "Неверный логин или пароль";
+                    return;
+                }
 
-                    if (user == null || !PasswordHasher.Verify(password, user.UserPassword))
+                if (!PasswordHasher.IsHashedFormat(user.UserPassword))
+                {
+                    try
                     {
-                        lblError.Text = "Неверный логин или пароль";
-                        return;
-                    }
-
-                    if (!PasswordHasher.IsHashedFormat(user.UserPassword))
-                    {
-                        try
+                        int userId = user.UserID;
+                        string newHash = PasswordHasher.HashPassword(password);
+                        DbOperation.Execute(ctx =>
                         {
-                            var tracked = context.UsersProfile.Find(user.UserID);
+                            var tracked = ctx.UsersProfile.Find(userId);
                             if (tracked != null)
                             {
-                                tracked.UserPassword = PasswordHasher.HashPassword(password);
-                                context.SaveChanges();
-                                user.UserPassword = tracked.UserPassword;
+                                tracked.UserPassword = newHash;
+                                ctx.SaveChanges();
                             }
-                        }
-                        catch { /* вход уже успешен, миграция хэша не критична */ }
+                        }, "LoginForm.RehashPassword");
+                        user.UserPassword = newHash;
                     }
-
-                    bool hasAssembly = user.UserWithPermissions.Any(p => p.Permissions.PermissionsName == "Сборщик");
-                    bool hasTesting = user.UserWithPermissions.Any(p => p.Permissions.PermissionsName == "Тестировщик");
-                    bool hasInspection = user.UserWithPermissions.Any(p => p.Permissions.PermissionsName == "Инспектор");
-                    bool hasStorage = user.Role.RoleName == "Storage";
-                    bool hasAdmin = user.Role.RoleName == "Admin";
-
-                    Form nextForm = null;
-
-                    if (hasStorage)
+                    catch (Exception migEx)
                     {
-                        nextForm = new WarehouseForm(user);
+                        AppLog.Warn("Не удалось перехешировать пароль пользователя UserID=" + user.UserID + ". Вход выполнен, миграция хэша пропущена.", migEx);
                     }
-                    else if (hasAssembly || hasTesting || hasInspection || hasAdmin)
-                    {
-                        nextForm = new EmployeeForm(user);
-                    }
-                    else
-                    {
-                        lblError.Text = "Нет доступных разрешений";
-                        return;
-                    }
-
-                    this.Hide();
-                    nextForm.FormClosed += (s, args) =>
-                    {
-                        this.Show();
-                        txtPassword.Clear();
-                        lblError.Text = "";
-                    };
-                    nextForm.Show();
                 }
+
+                var flags = UserPermissionsService.GetFlags(user);
+
+                Form nextForm;
+                if (flags.IsStorage)
+                {
+                    nextForm = new WarehouseForm(user);
+                }
+                else if (flags.CanUseEmployeeForm)
+                {
+                    nextForm = new EmployeeForm(user);
+                }
+                else
+                {
+                    lblError.Text = "Нет доступных разрешений";
+                    return;
+                }
+
+                this.Hide();
+                nextForm.FormClosed += (s, args) =>
+                {
+                    this.Show();
+                    txtPassword.Clear();
+                    lblError.Text = "";
+                };
+                nextForm.Show();
             }
             catch (Exception ex)
             {
-                string inner = ex.InnerException != null ? "\n\nПодробнее: " + ex.InnerException.Message : "";
-                MessageBox.Show("Ошибка подключения к базе данных:\n" + ex.Message + inner,
-                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка подключения к базе данных");
             }
         }
     }

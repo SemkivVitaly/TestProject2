@@ -69,6 +69,12 @@ namespace SaveData1.CrossPlateTesting.Models
         public bool MonitoringModeEnabled { get; set; }
         /// <summary>Выполнять тесты без проверки MAVLink. Используются Ping/UDP для информации, скрипт выполняется в любом случае.</summary>
         public bool SkipMavLinkConnectionCheck { get; set; }
+        /// <summary>
+        /// Отправлять MAVLink-пакеты в формате v2 (STX=0xFD). По умолчанию false (v1, совместимо со всеми прошивками).
+        /// Включите, если дрон настроен на режим v2-only (ArduPilot с SERIAL*_PROTOCOL force-v2 или PX4 MAV_PROTO_VER=2)
+        /// и не реагирует на v1-пакеты. На приём мы всегда понимаем оба формата.
+        /// </summary>
+        public bool UseMavLinkV2 { get; set; } = false;
         public string ExcelOutputFolder { get; set; } = "";
         public string TesterFio { get; set; } = "";
         public string ActNumber { get; set; } = "";

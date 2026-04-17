@@ -18,6 +18,7 @@ namespace SaveData1.Entity
         public TechnicalMapAssembly()
         {
             this.Description1 = new HashSet<Description>();
+            this.ProductPhoto = new HashSet<ProductPhoto>();
         }
     
         public int TMAID { get; set; }
@@ -36,5 +37,7 @@ namespace SaveData1.Entity
         public virtual UsersProfile UsersProfile { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<Description> Description1 { get; set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public virtual ICollection<ProductPhoto> ProductPhoto { get; set; }
     }
 }

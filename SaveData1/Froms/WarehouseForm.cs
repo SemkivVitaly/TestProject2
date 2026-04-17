@@ -6,6 +6,7 @@ using System.Linq;
 using System.Windows.Forms;
 using SaveData1.Entity;
 using SaveData1.Helpers;
+using SaveData1.Services;
 
 namespace SaveData1
 {
@@ -22,6 +23,7 @@ namespace SaveData1
         public WarehouseForm(UsersProfile user)
         {
             InitializeComponent();
+            Helpers.WindowStateStore.Attach(this);
             _currentUser = user;
             _hasStorageAdmin = user?.Role?.RoleName == "Storage" &&
                 (user.UserWithPermissions?.Any(p => p.Permissions != null && (p.Permissions.PermissionsName == "Администратор" || p.Permissions.PermissionsName == "Admin")) ?? false);
@@ -143,7 +145,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex);
             }
         }
 
@@ -202,7 +204,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex);
             }
         }
 
@@ -281,7 +283,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки");
             }
         }
 
@@ -316,7 +318,7 @@ namespace SaveData1
                     LoadAdminTableData(); LoadCountriesForCategory(); LoadCategories();
                     MessageBox.Show("Страна добавлена.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+                catch (Exception ex) { ExceptionDisplay.ShowError(this, ex); }
             }
             else if (_cmbAdminTable.SelectedIndex == 1)
             {
@@ -336,7 +338,7 @@ namespace SaveData1
                     LoadAdminTableData(); LoadCategories();
                     MessageBox.Show("Категория добавлена.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+                catch (Exception ex) { ExceptionDisplay.ShowError(this, ex); }
             }
             else if (_cmbAdminTable.SelectedIndex == 2)
             {
@@ -356,7 +358,7 @@ namespace SaveData1
                     LoadAdminTableData(); LoadProducts(); LoadUnassignedProducts();
                     MessageBox.Show("Продукт добавлен.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+                catch (Exception ex) { ExceptionDisplay.ShowError(this, ex); }
             }
         }
 
@@ -422,7 +424,7 @@ namespace SaveData1
                     }
                 }
             }
-            catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            catch (Exception ex) { ExceptionDisplay.ShowError(this, ex); }
         }
 
         private void BtnAdminDelete_Click(object sender, EventArgs e)
@@ -512,7 +514,7 @@ namespace SaveData1
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ExceptionDisplay.ShowError(this, ex);
                 }
             }
         }
@@ -623,7 +625,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки");
             }
         }
 
@@ -837,29 +839,18 @@ namespace SaveData1
         {
             try
             {
-                using (var context = ConnectionHelper.CreateContext())
-                {
-                    var products = context.Product
-                        .Include(p => p.ProducType)
-                        .Where(p => p.Act == null)
-                        .Select(p => new
-                        {
-                            p.ProductID,
-                            SerialNumber = p.ProductSerial,
-                            Category = p.ProducType.TypeName
-                        })
-                        .ToList();
+                var products = ActProductsQueryService.GetUnassignedProducts()
+                    .Select(p => new { p.ProductID, p.SerialNumber, p.Category })
+                    .ToList();
 
-                    dgvUnassignedProducts.DataSource = products;
-                    dgvUnassignedProducts.Columns["ProductID"].Visible = false;
-                    if (dgvUnassignedProducts.Columns.Contains("SerialNumber")) dgvUnassignedProducts.Columns["SerialNumber"].HeaderText = "Серийный номер";
-                    if (dgvUnassignedProducts.Columns.Contains("Category")) dgvUnassignedProducts.Columns["Category"].HeaderText = "Категория";
-                }
+                dgvUnassignedProducts.DataSource = products;
+                if (dgvUnassignedProducts.Columns["ProductID"] != null) dgvUnassignedProducts.Columns["ProductID"].Visible = false;
+                if (dgvUnassignedProducts.Columns.Contains("SerialNumber")) dgvUnassignedProducts.Columns["SerialNumber"].HeaderText = "Серийный номер";
+                if (dgvUnassignedProducts.Columns.Contains("Category")) dgvUnassignedProducts.Columns["Category"].HeaderText = "Категория";
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки продуктов: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки продуктов");
             }
         }
 

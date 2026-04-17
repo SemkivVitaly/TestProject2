@@ -264,6 +264,7 @@ namespace SaveData1.Froms
             if (_config.Delays == null)
                 _config.Delays = new DelaySettingsConfig();
             DelaySettings.Apply(_config.Delays);
+            MavLinkService.UseV2ForSending = _config.UseMavLinkV2;
 
             scrollStands.Controls.Clear();
             if (_config.Stands != null)
@@ -405,7 +406,7 @@ namespace SaveData1.Froms
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка записи в Excel: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка записи в Excel");
                 return;
             }
 
@@ -421,7 +422,7 @@ namespace SaveData1.Froms
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка записи несоответствия в БД: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка записи несоответствия в БД");
                 return;
             }
 
@@ -565,7 +566,7 @@ namespace SaveData1.Froms
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Ошибка открытия Excel: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ExceptionDisplay.ShowError(this, ex, "Ошибка открытия Excel");
                     btnStart.Enabled = true;
                     btnStop.Enabled = false;
                     SetAllTestButtonsEnabled(true);

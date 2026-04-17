@@ -20,6 +20,7 @@ namespace SaveData1.Entity
             this.Error = new HashSet<Error>();
             this.TechnicalMapFull = new HashSet<TechnicalMapFull>();
             this.TechnicalMatFlight = new HashSet<TechnicalMatFlight>();
+            this.ProductPhoto = new HashSet<ProductPhoto>();
         }
     
         public int ProductID { get; set; }
@@ -47,5 +48,8 @@ namespace SaveData1.Entity
         public virtual ICollection<TechnicalMapFull> TechnicalMapFull { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<TechnicalMatFlight> TechnicalMatFlight { get; set; }
+        public virtual UsersProfile UsersProfile3 { get; set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public virtual ICollection<ProductPhoto> ProductPhoto { get; set; }
     }
 }

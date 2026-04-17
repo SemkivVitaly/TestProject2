@@ -6,6 +6,7 @@ using System.Linq;
 using System.Windows.Forms;
 using SaveData1.Entity;
 using SaveData1.Helpers;
+using SaveData1.Services;
 
 namespace SaveData1.Froms
 {
@@ -26,13 +27,13 @@ namespace SaveData1.Froms
             Text = $"Контроль — акт № {_actNumber}";
         }
 
-        private void QualityControlForm_Load(object sender, EventArgs e)
+        private async void QualityControlForm_Load(object sender, EventArgs e)
         {
-            LoadGrid();
+            await this.RunWithWaitAsync(LoadGridAsync, "Загрузка списка", btnSave);
             txtScanBuffer.Focus();
         }
 
-        private void LoadGrid()
+        private async System.Threading.Tasks.Task LoadGridAsync()
         {
             dgv.Rows.Clear();
             dgv.Columns.Clear();
@@ -44,29 +45,27 @@ namespace SaveData1.Froms
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Serial", HeaderText = "Серийный номер", FillWeight = 50 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "State", HeaderText = "Состояние", FillWeight = 50 });
 
-            using (var ctx = ConnectionHelper.CreateContext())
-            {
-                var rows = ctx.TechnicalMapFull
-                    .AsNoTracking()
-                    .Include(f => f.Product)
-                    .Include("TechnicalMapAssembly")
-                    .Include("TechnicalMapTesting")
-                    .Where(f => f.Product.Act != null && f.Product.Act.ActNumber == _actNumber
-                        && !f.Inspection
-                        && f.TechnicalMapAssembly.Any(a => a.IsReady)
-                        && f.Product.PostTestingWarehouseAt == null)
-                    .ToList();
+            var rows = await DbOperation.RunAsync(ctx => ctx.TechnicalMapFull
+                .AsNoTracking()
+                .Include(f => f.Product)
+                .Include("TechnicalMapAssembly")
+                .Include("TechnicalMapTesting")
+                .Where(f => f.Product.Act != null && f.Product.Act.ActNumber == _actNumber
+                    && !f.Inspection
+                    && f.TechnicalMapAssembly.Any(a => a.IsReady)
+                    && f.Product.PostTestingWarehouseAt == null)
+                .ToList(),
+                "QualityControlForm.LoadGrid");
 
-                foreach (var f in rows.OrderBy(x => x.Product.ProductSerial))
-                {
-                    var tst = f.TechnicalMapTesting?.OrderByDescending(t => t.TMTID).FirstOrDefault();
-                    if (tst == null || !tst.IsReadt || tst.Fault)
-                        continue;
-                    bool alreadyQc = f.Product.QualityControlPassed;
-                    int idx = dgv.Rows.Add(f.ProductID, f.Product.ProductSerial, alreadyQc ? "Уже прошёл контроль (БД)" : "Ожидает скан");
-                    if (alreadyQc)
-                        dgv.Rows[idx].DefaultCellStyle.BackColor = Color.LightGray;
-                }
+            foreach (var f in rows.OrderBy(x => x.Product.ProductSerial))
+            {
+                var tst = f.TechnicalMapTesting?.OrderByDescending(t => t.TMTID).FirstOrDefault();
+                if (tst == null || !tst.IsReadt || tst.Fault)
+                    continue;
+                bool alreadyQc = f.Product.QualityControlPassed;
+                int idx = dgv.Rows.Add(f.ProductID, f.Product.ProductSerial, alreadyQc ? "Уже прошёл контроль (БД)" : "Ожидает скан");
+                if (alreadyQc)
+                    dgv.Rows[idx].DefaultCellStyle.BackColor = Color.LightGray;
             }
         }
 
@@ -93,13 +92,17 @@ namespace SaveData1.Froms
                 row.DefaultCellStyle.BackColor = Color.LightGreen;
                 row.Cells["State"].Value = "Отсканирован (сессия)";
                 lblStatus.Text = $"Скан: {serial}";
+                try { System.Media.SystemSounds.Beep.Play(); } catch { }
+                txtScanBuffer.Focus();
                 return;
             }
 
             lblStatus.Text = $"Не найдено в акте: {raw}";
+            try { System.Media.SystemSounds.Hand.Play(); } catch { }
+            txtScanBuffer.Focus();
         }
 
-        private void btnSave_Click(object sender, EventArgs e)
+        private async void btnSave_Click(object sender, EventArgs e)
         {
             if (_scannedProductIds.Count == 0)
             {
@@ -108,58 +111,22 @@ namespace SaveData1.Froms
                 return;
             }
 
-            try
+            var (ok, result) = await this.RunWithWaitAsync(
+                () => System.Threading.Tasks.Task.Run(() =>
+                    ProductLifecycleService.MarkQualityControlPassed(_actNumber, _scannedProductIds, _currentUser.UserID)),
+                "Сохранение контроля",
+                btnSave);
+            if (!ok) return;
+
+            string msg = result.Saved > 0
+                ? $"Сохранено записей: {result.Saved}." + (result.Skipped > 0 ? $" Пропущено (изменились данные в БД или не проходят проверку): {result.Skipped}." : "")
+                : "Ни одна запись не сохранена: данные в базе не соответствуют условиям контроля (актуальный успешный тест, акт, не передано на склад).";
+            MessageBox.Show(msg, "Контроль",
+                MessageBoxButtons.OK, result.Saved > 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+            if (result.Saved > 0)
             {
-                int saved = 0;
-                int skipped = 0;
-                using (var ctx = ConnectionHelper.CreateContext())
-                using (var tx = ctx.Database.BeginTransaction())
-                {
-                    var utc = DateTime.UtcNow;
-                    foreach (int pid in _scannedProductIds)
-                    {
-                        var p = ctx.Product.Include(x => x.Act).FirstOrDefault(x => x.ProductID == pid);
-                        if (p == null || p.ActID == null || p.Act == null || p.Act.ActNumber != _actNumber)
-                        {
-                            skipped++;
-                            continue;
-                        }
-                        if (p.PostTestingWarehouseAt != null)
-                        {
-                            skipped++;
-                            continue;
-                        }
-                        if (!ProductLifecycleValidation.LatestTestingSucceeded(ctx, pid))
-                        {
-                            skipped++;
-                            continue;
-                        }
-
-                        p.QualityControlPassed = true;
-                        p.QualityControlPassedUtc = utc;
-                        p.QualityControlByUserID = _currentUser.UserID;
-                        saved++;
-                    }
-
-                    ctx.SaveChanges();
-                    tx.Commit();
-                }
-
-                string msg = saved > 0
-                    ? $"Сохранено записей: {saved}." + (skipped > 0 ? $" Пропущено (изменились данные в БД или не проходят проверку): {skipped}." : "")
-                    : "Ни одна запись не сохранена: данные в базе не соответствуют условиям контроля (актуальный успешный тест, акт, не передано на склад).";
-                MessageBox.Show(msg, "Контроль",
-                    MessageBoxButtons.OK, saved > 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
-                if (saved > 0)
-                {
-                    DialogResult = DialogResult.OK;
-                    Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Ошибка сохранения: " + ex.Message, "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                DialogResult = DialogResult.OK;
+                Close();
             }
         }
 

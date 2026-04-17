@@ -133,6 +133,9 @@
     <Compile Include="Entity\Product.cs">
       <DependentUpon>Model1.tt</DependentUpon>
     </Compile>
+    <Compile Include="Entity\ProductPhoto.cs">
+      <DependentUpon>Model1.tt</DependentUpon>
+    </Compile>
     <Compile Include="Entity\ProducType.cs">
       <DependentUpon>Model1.tt</DependentUpon>
     </Compile>
@@ -260,6 +263,7 @@
     <Compile Include="CrossPlateTesting\Models\ParameterReference.cs" />
     <Compile Include="CrossPlateTesting\Models\ScriptNode.cs" />
     <Compile Include="CrossPlateTesting\Models\Stand.cs" />
+    <Compile Include="CrossPlateTesting\Services\BridgeLogClient.cs" />
     <Compile Include="CrossPlateTesting\Services\BridgeUnifiedLogSaveService.cs" />
     <Compile Include="CrossPlateTesting\Services\CrossPlateConfigService.cs" />
     <Compile Include="CrossPlateTesting\Services\CrossPlateDbHelper.cs" />
@@ -335,7 +339,17 @@
     <Compile Include="Helpers\BridgeLogClient.cs" />
     <Compile Include="Helpers\BridgeExcelReportHelper.cs" />
     <Compile Include="Helpers\ExcelReportHelper.cs" />
+    <Compile Include="Helpers\AppLog.cs" />
+    <Compile Include="Helpers\AsyncFormHelper.cs" />
+    <Compile Include="Helpers\DbOperation.cs" />
     <Compile Include="Helpers\ExceptionDisplay.cs" />
+    <Compile Include="Helpers\InputValidator.cs" />
+    <Compile Include="Helpers\UiTheme.cs" />
+    <Compile Include="Helpers\WindowStateStore.cs" />
+    <Compile Include="Services\ActProductsQueryService.cs" />
+    <Compile Include="Services\ProductPhotoService.cs" />
+    <Compile Include="Services\ProductLifecycleService.cs" />
+    <Compile Include="Services\UserPermissionsService.cs" />
     <Compile Include="Helpers\FaultDescriptionHelper.cs" />
     <Compile Include="Helpers\NonConformityLabelHelper.cs" />
     <Compile Include="Helpers\LocalSecretProtector.cs" />

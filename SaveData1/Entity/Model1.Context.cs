@@ -48,6 +48,7 @@ namespace SaveData1.Entity
         public virtual DbSet<TestFlight> TestFlight { get; set; }
         public virtual DbSet<UsersProfile> UsersProfile { get; set; }
         public virtual DbSet<UserWithPermissions> UserWithPermissions { get; set; }
+        public virtual DbSet<ProductPhoto> ProductPhoto { get; set; }
     
         public virtual int sp_alterdiagram(string diagramname, Nullable<int> owner_id, Nullable<int> version, byte[] definition)
         {

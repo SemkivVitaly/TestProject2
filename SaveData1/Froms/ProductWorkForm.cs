@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using SaveData1.Entity;
 using SaveData1.Helpers;
+using SaveData1.Services;
 
 namespace SaveData1
 {
@@ -12,15 +15,35 @@ namespace SaveData1
         private readonly int _tmId;
         private readonly bool _isTesting;
         private readonly string _fio;
+        private readonly int _productId;
+        private readonly string _actNumber;
+        private readonly int _userId;
+        private readonly bool _photoEnabled;
         private List<Description> _descriptions = new List<Description>();
+
+        private readonly List<ProductPhotoService.PendingPhoto> _pendingPhotos = new List<ProductPhotoService.PendingPhoto>();
+        private readonly List<ProductPhotoService.StoredPhoto> _storedPhotos = new List<ProductPhotoService.StoredPhoto>();
+        private GroupBox _photoGroup;
+        private FlowLayoutPanel _photoList;
+        private Label _photoCounter;
 
         public ProductWorkForm(int tmId, string serialNumber, string category, string fio,
             DateTime date, TimeSpan timeStart, TimeSpan timeEnd, bool isTesting = false)
+            : this(tmId, 0, serialNumber, category, fio, date, timeStart, timeEnd, isTesting, null, 0)
+        {
+        }
+
+        public ProductWorkForm(int tmId, int productId, string serialNumber, string category, string fio,
+            DateTime date, TimeSpan timeStart, TimeSpan timeEnd, bool isTesting, string actNumber, int userId)
         {
             InitializeComponent();
             _tmId = tmId;
             _isTesting = isTesting;
             _fio = fio;
+            _productId = productId;
+            _actNumber = actNumber;
+            _userId = userId;
+            _photoEnabled = productId > 0 && !string.IsNullOrWhiteSpace(actNumber) && userId > 0;
 
             txtSerial.Text = serialNumber ?? "";
             txtCategory.Text = category ?? "";
@@ -47,6 +70,198 @@ namespace SaveData1
             btnSoundTest.Visible = _isTesting;
 
             LoadDescriptions();
+
+            if (_photoEnabled)
+                BuildPhotoPanel();
+        }
+
+        private void BuildPhotoPanel()
+        {
+            int formRight = this.ClientSize.Width;
+            int panelLeft = formRight + 10;
+            int panelWidth = 360;
+
+            _photoGroup = new GroupBox
+            {
+                Text = "Фотографии (сохраняются при нажатии «Сохранить»)",
+                Left = panelLeft,
+                Top = 10,
+                Width = panelWidth,
+                Height = this.ClientSize.Height - 20,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Bottom
+            };
+
+            var btnAdd = new Button
+            {
+                Text = "Добавить…",
+                Left = 10,
+                Top = 20,
+                Width = 110,
+                Height = 28
+            };
+            btnAdd.Click += PhotoAdd_Click;
+
+            _photoCounter = new Label
+            {
+                Left = 130,
+                Top = 25,
+                AutoSize = true,
+                Text = "Фото: 0"
+            };
+
+            _photoList = new FlowLayoutPanel
+            {
+                Left = 10,
+                Top = 55,
+                Width = panelWidth - 25,
+                Height = _photoGroup.Height - 65,
+                AutoScroll = true,
+                BorderStyle = BorderStyle.FixedSingle,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom,
+                BackColor = Color.White
+            };
+
+            _photoGroup.Controls.Add(btnAdd);
+            _photoGroup.Controls.Add(_photoCounter);
+            _photoGroup.Controls.Add(_photoList);
+
+            this.ClientSize = new Size(formRight + panelWidth + 20, Math.Max(this.ClientSize.Height, 520));
+            this.FormBorderStyle = FormBorderStyle.Sizable;
+            this.MinimumSize = new Size(this.Width, this.Height);
+            this.MaximizeBox = false;
+            this.Controls.Add(_photoGroup);
+
+            LoadStoredPhotos();
+            RefreshPhotoList();
+        }
+
+        private void LoadStoredPhotos()
+        {
+            try
+            {
+                _storedPhotos.Clear();
+                _storedPhotos.AddRange(ProductPhotoService.GetStoredPhotos(_productId));
+            }
+            catch (Exception ex)
+            {
+                AppLog.Warn("ProductWorkForm.LoadStoredPhotos: " + ex.Message);
+            }
+        }
+
+        private int NextDisplaySequence()
+        {
+            int max = 0;
+            foreach (var sp in _storedPhotos)
+                if (sp.SequenceNo > max) max = sp.SequenceNo;
+            return max + 1 + _pendingPhotos.Count;
+        }
+
+        private void PhotoAdd_Click(object sender, EventArgs e)
+        {
+            using (var dlg = new OpenFileDialog())
+            {
+                dlg.Title = "Выберите фотографии";
+                dlg.Filter = "Изображения|*.jpg;*.jpeg;*.png;*.bmp|Все файлы|*.*";
+                dlg.Multiselect = true;
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+                foreach (var path in dlg.FileNames)
+                {
+                    try
+                    {
+                        var pending = ProductPhotoService.CreateFromFile(path,
+                            _isTesting ? ProductPhotoService.StageTesting : ProductPhotoService.StageAssembly,
+                            tmaId: null, tmtId: null);
+                        _pendingPhotos.Add(pending);
+                    }
+                    catch (Exception ex)
+                    {
+                        ExceptionDisplay.ShowError(this, ex, "Не удалось добавить файл: " + Path.GetFileName(path));
+                    }
+                }
+                RefreshPhotoList();
+            }
+        }
+
+        private void RefreshPhotoList()
+        {
+            if (_photoList == null) return;
+            _photoList.Controls.Clear();
+
+            foreach (var sp in _storedPhotos.OrderBy(x => x.SequenceNo))
+                _photoList.Controls.Add(BuildThumbPanel("#" + sp.SequenceNo + " — " + sp.FileName, null, allowRemove: false, onRemove: null));
+
+            int baseSeq = _storedPhotos.Count > 0 ? _storedPhotos.Max(x => x.SequenceNo) : 0;
+            for (int i = 0; i < _pendingPhotos.Count; i++)
+            {
+                var p = _pendingPhotos[i];
+                int displaySeq = baseSeq + i + 1;
+                int localIndex = i;
+                _photoList.Controls.Add(BuildThumbPanel(
+                    "#" + displaySeq + " — " + (p.OriginalName ?? "(новое фото)") + "  (новое)",
+                    p.Bytes, allowRemove: true,
+                    onRemove: () => { _pendingPhotos.RemoveAt(localIndex); RefreshPhotoList(); }));
+            }
+
+            int total = _storedPhotos.Count + _pendingPhotos.Count;
+            _photoCounter.Text = "Фото: " + total +
+                (_pendingPhotos.Count > 0 ? "  (к сохранению: " + _pendingPhotos.Count + ")" : "");
+        }
+
+        private Control BuildThumbPanel(string caption, byte[] bytes, bool allowRemove, Action onRemove)
+        {
+            var p = new Panel
+            {
+                Width = _photoList.ClientSize.Width - 8,
+                Height = 80,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = new Padding(2)
+            };
+            var pb = new PictureBox
+            {
+                Left = 2,
+                Top = 2,
+                Width = 100,
+                Height = 74,
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Gainsboro
+            };
+            if (bytes != null)
+            {
+                try { using (var ms = new MemoryStream(bytes)) pb.Image = Image.FromStream(ms); }
+                catch { pb.BackColor = Color.LightPink; }
+            }
+            else
+            {
+                pb.BackColor = Color.LightGreen;
+            }
+            var lbl = new Label
+            {
+                Left = 108,
+                Top = 8,
+                AutoSize = false,
+                Width = p.Width - 220,
+                Height = 60,
+                Text = caption
+            };
+            p.Controls.Add(pb);
+            p.Controls.Add(lbl);
+
+            if (allowRemove && onRemove != null)
+            {
+                var btn = new Button
+                {
+                    Text = "Удалить",
+                    Left = p.Width - 90,
+                    Top = 25,
+                    Width = 80,
+                    Height = 28,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                };
+                btn.Click += (s, e) => onRemove();
+                p.Controls.Add(btn);
+            }
+            return p;
         }
 
         private void btnSoundTest_Click(object sender, EventArgs e)
@@ -71,7 +286,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки причин неисправности: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки причин неисправности");
             }
         }
 
@@ -218,13 +433,34 @@ namespace SaveData1
                     NonConformityLabelHelper.OfferGenerateLabel(errorId, _fio, defectText);
                 }
 
+                if (_photoEnabled && _pendingPhotos.Count > 0)
+                {
+                    try
+                    {
+                        foreach (var p in _pendingPhotos)
+                        {
+                            if (_isTesting) p.TMTID = tmtId == 0 ? (int?)null : tmtId;
+                            else p.TMAID = tmaId == 0 ? (int?)null : tmaId;
+                        }
+                        var result = ProductPhotoService.Commit(
+                            _productId, txtSerial.Text, _actNumber, _userId, _pendingPhotos);
+                        if (result.SavedCount > 0)
+                            AppLog.Info("ProductWorkForm: сохранено фото=" + result.SavedCount + " в " + result.FolderPath);
+                        _pendingPhotos.Clear();
+                    }
+                    catch (Exception photoEx)
+                    {
+                        ExceptionDisplay.ShowError(this, photoEx, "Ошибка сохранения фотографий");
+                        return;
+                    }
+                }
+
                 DialogResult = DialogResult.OK;
                 Close();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка сохранения: " + ex.Message, "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка сохранения");
             }
         }
 

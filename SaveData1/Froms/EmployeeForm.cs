@@ -11,6 +11,7 @@ using SaveData1.CrossPlateTesting.Services;
 using SaveData1.Entity;
 using SaveData1.Froms;
 using SaveData1.Helpers;
+using SaveData1.Services;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace SaveData1
@@ -54,6 +55,9 @@ namespace SaveData1
         private ContextMenuStrip _ctxTestingProductAdmin;
         private ToolStripMenuItem _miGrantTestingUnlock;
         private ToolStripMenuItem _miRevokeTestingUnlock;
+        private ToolStripSeparator _miProductAdminSep;
+        private ToolStripMenuItem _miResetAssembler;
+        private ToolStripMenuItem _miResetTester;
 
         private ContextMenuStrip _ctxLstActsAdmin;
         private ToolStripMenuItem _miLstActsResetWorkers;
@@ -89,6 +93,7 @@ namespace SaveData1
         public EmployeeForm(UsersProfile user)
         {
             InitializeComponent();
+            Helpers.WindowStateStore.Attach(this);
             _currentUser = user;
             _isAdmin = user.Role != null && user.Role.RoleName == "Admin";
 
@@ -247,6 +252,16 @@ namespace SaveData1
             _miRevokeTestingUnlock.Click += CtxRevokeTestingUnlock_Click;
             _ctxTestingProductAdmin.Items.Add(_miGrantTestingUnlock);
             _ctxTestingProductAdmin.Items.Add(_miRevokeTestingUnlock);
+
+            _miProductAdminSep = new ToolStripSeparator();
+            _miResetAssembler = new ToolStripMenuItem("Снять сборщика (сбросить бронь)");
+            _miResetTester = new ToolStripMenuItem("Снять тестировщика (сбросить бронь)");
+            _miResetAssembler.Click += CtxResetAssembler_Click;
+            _miResetTester.Click += CtxResetTester_Click;
+            _ctxTestingProductAdmin.Items.Add(_miProductAdminSep);
+            _ctxTestingProductAdmin.Items.Add(_miResetAssembler);
+            _ctxTestingProductAdmin.Items.Add(_miResetTester);
+
             _ctxTestingProductAdmin.Opening += CtxTestingProductAdmin_Opening;
             dgvProducts.ContextMenuStrip = _ctxTestingProductAdmin;
         }
@@ -339,16 +354,13 @@ namespace SaveData1
 
         private void CtxTestingProductAdmin_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (!_isAdmin || (_currentWorkMode != WorkMode.Testing && _currentWorkMode != WorkMode.Assembly
-                && _currentWorkMode != WorkMode.PolletnikAutoTesting && _currentWorkMode != WorkMode.CrossPlataAutoTesting))
+            bool inWorkMode = _currentWorkMode == WorkMode.Testing || _currentWorkMode == WorkMode.Assembly
+                || _currentWorkMode == WorkMode.PolletnikAutoTesting || _currentWorkMode == WorkMode.CrossPlataAutoTesting;
+            if (!inWorkMode || (!_isAdmin && !_hasAdminPermission))
             {
                 e.Cancel = true;
                 return;
             }
-            if (_currentWorkMode == WorkMode.Assembly)
-                _miGrantTestingUnlock.Text = "Разрешить открытие сборки без сканирования QR";
-            else
-                _miGrantTestingUnlock.Text = "Разрешить открытие теста без сканирования QR";
             var pos = dgvProducts.PointToClient(Control.MousePosition);
             var hit = dgvProducts.HitTest(pos.X, pos.Y);
             if (hit.RowIndex < 0)
@@ -358,6 +370,156 @@ namespace SaveData1
             }
             dgvProducts.ClearSelection();
             dgvProducts.Rows[hit.RowIndex].Selected = true;
+
+            bool canUnlock = _isAdmin;
+            _miGrantTestingUnlock.Visible = canUnlock;
+            _miRevokeTestingUnlock.Visible = canUnlock;
+            if (canUnlock)
+            {
+                if (_currentWorkMode == WorkMode.Assembly)
+                    _miGrantTestingUnlock.Text = "Разрешить открытие сборки без сканирования QR";
+                else
+                    _miGrantTestingUnlock.Text = "Разрешить открытие теста без сканирования QR";
+            }
+
+            bool canResetWorkers = _hasAdminPermission;
+            _miProductAdminSep.Visible = canResetWorkers;
+            _miResetAssembler.Visible = canResetWorkers;
+            _miResetTester.Visible = canResetWorkers;
+
+            if (!canUnlock && !canResetWorkers)
+                e.Cancel = true;
+        }
+
+        private void CtxResetAssembler_Click(object sender, EventArgs e)
+        {
+            ResetProductWorkerReservation(isTesting: false);
+        }
+
+        private void CtxResetTester_Click(object sender, EventArgs e)
+        {
+            ResetProductWorkerReservation(isTesting: true);
+        }
+
+        private void ResetProductWorkerReservation(bool isTesting)
+        {
+            int? pid = GetSelectedProductIdForContextMenu();
+            if (!pid.HasValue) return;
+
+            string serial = "";
+            if (dgvProducts.CurrentRow != null && dgvProducts.Columns.Contains("SerialNumber"))
+                serial = (dgvProducts.CurrentRow.Cells["SerialNumber"].Value ?? "").ToString();
+
+            string who = isTesting ? "тестировщика" : "сборщика";
+            string prompt = string.IsNullOrWhiteSpace(serial)
+                ? "Снять " + who + " у продукта (ID " + pid.Value + ")?\n\n" +
+                  "Все брони «в работе» и признак «Брак» на этой стадии будут сняты.\n" +
+                  "Если по продукту была инспекция с результатом «Ремонт» или «Отклонение разрешено», " +
+                  "флаг ожидания инспекции тоже будет снят.\n\n" +
+                  "Продукт снова станет доступен другим сотрудникам."
+                : "Снять " + who + " у продукта «" + serial + "»?\n\n" +
+                  "Все брони «в работе» и признак «Брак» на этой стадии будут сняты.\n" +
+                  "Если по продукту была инспекция с результатом «Ремонт» или «Отклонение разрешено», " +
+                  "флаг ожидания инспекции тоже будет снят.\n\n" +
+                  "Продукт снова станет доступен другим сотрудникам.";
+            if (MessageBox.Show(prompt, "Сброс брони",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+                return;
+
+            try
+            {
+                int bookingsCleared = 0;
+                int faultsCleared = 0;
+                int inspectionFlagsCleared = 0;
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var tmIds = ctx.TechnicalMapFull.AsNoTracking()
+                        .Where(f => f.ProductID == pid.Value)
+                        .Select(f => f.TMID)
+                        .ToList();
+                    if (tmIds.Count == 0)
+                    {
+                        MessageBox.Show("Для этого продукта нет записей работы.", "Сброс брони",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    if (isTesting)
+                    {
+                        var rowsInProgress = ctx.TechnicalMapTesting.Where(t => tmIds.Contains(t.TMID) && t.InProgress).ToList();
+                        foreach (var r in rowsInProgress) r.InProgress = false;
+                        bookingsCleared = rowsInProgress.Count;
+
+                        var rowsFault = ctx.TechnicalMapTesting.Where(t => tmIds.Contains(t.TMID) && t.Fault).ToList();
+                        foreach (var r in rowsFault) r.Fault = false;
+                        faultsCleared = rowsFault.Count;
+                    }
+                    else
+                    {
+                        var rowsInProgress = ctx.TechnicalMapAssembly.Where(a => tmIds.Contains(a.TMID) && a.InProgress).ToList();
+                        foreach (var r in rowsInProgress) r.InProgress = false;
+                        bookingsCleared = rowsInProgress.Count;
+
+                        var rowsFault = ctx.TechnicalMapAssembly.Where(a => tmIds.Contains(a.TMID) && a.Fault).ToList();
+                        foreach (var r in rowsFault) r.Fault = false;
+                        faultsCleared = rowsFault.Count;
+                    }
+
+                    // Если по продукту стоит full.Inspection=true и уже есть результат «Ремонт» или «Отклонение разрешено» —
+                    // снимаем этот флаг, чтобы продукт вернулся в рабочий поток.
+                    var fulls = ctx.TechnicalMapFull.Where(f => tmIds.Contains(f.TMID) && f.Inspection).ToList();
+                    if (fulls.Count > 0)
+                    {
+                        var errors = ctx.Error.Include("Inspection").Include("Inspection.ResultTable")
+                            .Where(e => e.TMID != null && tmIds.Contains(e.TMID.Value)).ToList();
+                        foreach (var f in fulls)
+                        {
+                            var relatedErrors = errors.Where(e => e.TMID == f.TMID).ToList();
+                            string lastRt = "";
+                            foreach (var er in relatedErrors)
+                            {
+                                var li = er.Inspection?
+                                    .Where(i => i.ResultTable != null && i.ResultTable.ResultText != null)
+                                    .OrderByDescending(i => i.InspectionID)
+                                    .FirstOrDefault();
+                                string rt = li?.ResultTable?.ResultText ?? "";
+                                if (ResultSeverityRank(rt) > ResultSeverityRank(lastRt))
+                                    lastRt = rt;
+                            }
+                            if (IsReworkableResult(lastRt))
+                            {
+                                f.Inspection = false;
+                                inspectionFlagsCleared++;
+                            }
+                        }
+                    }
+
+                    if (bookingsCleared == 0 && faultsCleared == 0 && inspectionFlagsCleared == 0)
+                    {
+                        MessageBox.Show("На этой стадии нет активных броней, признаков брака и флагов инспекции для этого продукта.", "Сброс брони",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    ctx.SaveChanges();
+                }
+                AppLog.Info("Reset worker reservation: productId=" + pid.Value +
+                            " stage=" + (isTesting ? "Testing" : "Assembly") +
+                            " bookings=" + bookingsCleared +
+                            " faults=" + faultsCleared +
+                            " inspectionFlags=" + inspectionFlagsCleared +
+                            " by userId=" + _currentUser.UserID);
+                MessageBox.Show(
+                    "Снято:\n" +
+                    "  • броней: " + bookingsCleared + "\n" +
+                    "  • признаков «Брак»: " + faultsCleared + "\n" +
+                    "  • флагов ожидания инспекции: " + inspectionFlagsCleared,
+                    "Готово", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LoadProductsForSelectedAct();
+            }
+            catch (Exception ex)
+            {
+                Helpers.ExceptionDisplay.ShowError(this, ex, "Ошибка сброса брони");
+            }
         }
 
         private int? GetSelectedProductIdForContextMenu()
@@ -400,7 +562,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Helpers.ExceptionDisplay.ShowError(this, ex);
             }
         }
 
@@ -429,7 +591,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Helpers.ExceptionDisplay.ShowError(this, ex);
             }
         }
 
@@ -470,6 +632,12 @@ namespace SaveData1
             e.SuppressKeyPress = true;
             string s = (_txtTestingSerialScan.Text ?? "").Trim();
             _txtTestingSerialScan.Clear();
+            if (string.IsNullOrEmpty(s))
+            {
+                try { System.Media.SystemSounds.Hand.Play(); } catch { }
+                return;
+            }
+            try { System.Media.SystemSounds.Beep.Play(); } catch { }
             if (_currentWorkMode == WorkMode.Testing)
                 TryOpenTestingBySerial(s);
             else if (_currentWorkMode == WorkMode.Assembly)
@@ -478,6 +646,7 @@ namespace SaveData1
                 TryOpenPolletnikAutoTestingBySerial(s);
             else if (_currentWorkMode == WorkMode.CrossPlataAutoTesting)
                 TryOpenCrossPlateAutoTestingBySerial(s);
+            BeginInvoke(new Action(() => { if (_txtTestingSerialScan != null && !_txtTestingSerialScan.IsDisposed) _txtTestingSerialScan.Focus(); }));
         }
 
         private static bool ProductHasActiveTestingManualUnlock(Product p)
@@ -985,7 +1154,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Helpers.ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки");
             }
         }
 
@@ -1085,7 +1254,7 @@ namespace SaveData1
                 if (_cmbAdminTable.SelectedIndex == 2) LoadAdminActs();
                 MessageBox.Show("Запись добавлена.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            catch (Exception ex) { Helpers.ExceptionDisplay.ShowError(this, ex); }
         }
 
         private void AdminDataEdit_Click(object sender, EventArgs e)
@@ -1183,7 +1352,7 @@ namespace SaveData1
                 if (_cmbAdminTable.SelectedIndex == 2) LoadAdminActs();
                 MessageBox.Show("Запись изменена.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            catch (Exception ex) { Helpers.ExceptionDisplay.ShowError(this, ex); }
         }
 
         private void AdminDataDelete_Click(object sender, EventArgs e)
@@ -1284,7 +1453,7 @@ namespace SaveData1
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Ошибка: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    Helpers.ExceptionDisplay.ShowError(this, ex);
                 }
             }
         }
@@ -1295,7 +1464,12 @@ namespace SaveData1
             var row = dgv.SelectedRows[0];
             if (!dgv.Columns.Contains("ProductID")) return;
             int productId = Convert.ToInt32(row.Cells["ProductID"].Value);
-            if (MessageBox.Show("Удалить выбранный продукт из базы данных?", "Подтверждение", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            string serial = dgv.Columns.Contains("SerialNumber") ? (row.Cells["SerialNumber"].Value ?? "").ToString() : "";
+            string prompt = string.IsNullOrWhiteSpace(serial)
+                ? "Удалить выбранный продукт (ID " + productId + ") из базы данных?\n\nЭто действие необратимо."
+                : "Удалить продукт «" + serial + "» (ID " + productId + ") из базы данных?\n\nЭто действие необратимо.";
+            if (MessageBox.Show(prompt, "Подтверждение удаления",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
                 return;
             try
             {
@@ -1311,7 +1485,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка удаления (возможно, есть связанные записи): " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Helpers.ExceptionDisplay.ShowError(this, ex, "Ошибка удаления");
             }
         }
 
@@ -1368,7 +1542,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки категорий: " + ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Helpers.ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки категорий");
             }
         }
 
@@ -1394,41 +1568,25 @@ namespace SaveData1
                     }
                 }
 
-                using (var context = ConnectionHelper.CreateContext())
-                {
-                    var query = context.Act.AsNoTracking().Where(a => a.IsReady).AsQueryable();
-                    if (!string.IsNullOrEmpty(filterTypeName))
-                    {
-                        query = query.Where(a => a.Product.Any(p => p.ProducType != null && p.ProducType.TypeName == filterTypeName));
-                    }
-                    else if (filterTypeID.HasValue)
-                    {
-                        if (filterCountryID.HasValue)
-                            query = query.Where(a => a.Product.Any(p => p.TypeID == filterTypeID.Value && p.ProducType != null && p.ProducType.CountryID == filterCountryID.Value));
-                        else
-                            query = query.Where(a => a.Product.Any(p => p.TypeID == filterTypeID.Value));
-                    }
-                    var acts = query.Select(a => new { a.ActNumber, Count = a.Product.Count }).OrderBy(a => a.ActNumber).ToList();
+                var acts = ActProductsQueryService.GetReadyActsFiltered(filterTypeName, filterTypeID, filterCountryID);
 
-                    lstActs.Items.Clear();
-                    if (acts.Count == 0)
-                    {
-                        lstActs.Items.Add("Акты не найдены");
-                    }
-                    else
-                    {
-                        lstActs.Items.Add("(Все акты)");
-                        foreach (var act in acts)
-                            lstActs.Items.Add($"Акт № {act.ActNumber} ({act.Count} шт.)");
-                    }
-                    if (lstActs.Items.Count > 0)
-                        lstActs.SelectedIndex = 0;
+                lstActs.Items.Clear();
+                if (acts.Count == 0)
+                {
+                    lstActs.Items.Add("Акты не найдены");
                 }
+                else
+                {
+                    lstActs.Items.Add("(Все акты)");
+                    foreach (var act in acts)
+                        lstActs.Items.Add($"Акт № {act.ActNumber} ({act.ProductCount} шт.)");
+                }
+                if (lstActs.Items.Count > 0)
+                    lstActs.SelectedIndex = 0;
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки актов: " + ex.Message, "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки актов");
             }
         }
 
@@ -1551,23 +1709,17 @@ namespace SaveData1
             if (IsDisposed) return;
             try
             {
-                using (var ctx = ConnectionHelper.CreateContext())
-                {
-                    var fresh = ctx.UsersProfile
-                        .Include(u => u.Role)
-                        .Include("UserWithPermissions.Permissions")
-                        .FirstOrDefault(u => u.UserID == _currentUser.UserID);
-                    if (fresh == null) return;
-                    _currentUser = fresh;
-                }
+                var fresh = UserPermissionsService.FindById(_currentUser.UserID);
+                if (fresh == null) return;
+                _currentUser = fresh;
 
-                _isAdmin = _currentUser.Role != null && _currentUser.Role.RoleName == "Admin";
-                var perms = _currentUser.UserWithPermissions ?? new List<UserWithPermissions>();
-                _hasAdminPermission = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Администратор");
-                _hasAssembly = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Сборщик");
-                _hasTesting = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Тестировщик");
-                _hasInspection = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Инспектор");
-                _hasControl = perms.Any(p => p.Permissions != null && p.Permissions.PermissionsName == "Контроль");
+                var flags = UserPermissionsService.GetFlags(_currentUser);
+                _isAdmin = flags.IsAdmin;
+                _hasAdminPermission = flags.HasAdminPermission;
+                _hasAssembly = flags.HasAssembly;
+                _hasTesting = flags.HasTesting;
+                _hasInspection = flags.HasInspection;
+                _hasControl = flags.HasControl;
 
                 Text = "Сотрудник — " + (_currentUser.UserName ?? "");
 
@@ -1582,8 +1734,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Не удалось обновить интерфейс после смены прав: " + ex.Message, "Внимание",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ExceptionDisplay.ShowError(this, ex, "Не удалось обновить интерфейс после смены прав");
             }
         }
 
@@ -1737,7 +1888,7 @@ namespace SaveData1
                             .Include("TechnicalMapAssembly")
                             .Include("TechnicalMapTesting.UsersProfile")
                             .Include("TechnicalMapTesting.Description")
-                            .Where(f => f.Product.Act != null && !f.Inspection && f.TechnicalMapAssembly.Any(a => a.IsReady)
+                            .Where(f => f.Product.Act != null && f.TechnicalMapAssembly.Any(a => a.IsReady)
                                 && f.Product.PostTestingWarehouseAt == null);
                         if (!allActs)
                             queryTester = queryTester.Where(f => f.Product.Act.ActNumber == actNumber);
@@ -1861,7 +2012,18 @@ namespace SaveData1
                                 || (er.Product != null && er.Product.Act != null && er.Product.Act.ActNumber == actNumber));
                         }
 
-                        _allProductData = errorsQuery.ToList().Select(er =>
+                        _allProductData = errorsQuery.ToList()
+                            .Where(er =>
+                            {
+                                // Скрываем ярлыки несоответствия, по которым уже принят вердикт «Изолировано (Не устранимо)».
+                                var lastInsp = er.Inspection?
+                                    .Where(i => i.ResultTable != null && i.ResultTable.ResultText != null)
+                                    .OrderByDescending(i => i.InspectionID)
+                                    .FirstOrDefault();
+                                string rt = lastInsp?.ResultTable?.ResultText ?? "";
+                                return rt.IndexOf("Изолировано", StringComparison.OrdinalIgnoreCase) < 0;
+                            })
+                            .Select(er =>
                         {
                             var prod = er.TechnicalMapFull != null ? er.TechnicalMapFull.Product : er.Product;
                             var firstInspection = er.Inspection != null && er.Inspection.Count > 0 ? er.Inspection.First() : null;
@@ -1893,24 +2055,83 @@ namespace SaveData1
                     if (_currentWorkMode == WorkMode.Assembly || _currentWorkMode == WorkMode.Testing
                         || _currentWorkMode == WorkMode.PolletnikAutoTesting || _currentWorkMode == WorkMode.CrossPlataAutoTesting)
                     {
+                        var fullTmIdsInGrid = _allProductData.Select(d => d.FullTMID).Where(id => id > 0).Distinct().ToList();
+
                         var errorsWithInsp = context.Error
                             .AsNoTracking()
                             .Where(e => e.TMID != null)
                             .Include("Inspection")
                             .Include("Inspection.ResultTable")
                             .ToList();
-                        var tmidApproved = errorsWithInsp
-                            .Where(e => e.Inspection != null && e.Inspection.Any(i => i.ResultTable != null &&
-                                i.ResultTable.ResultText != null &&
-                                i.ResultTable.ResultText.IndexOf("Отклонение разрешено", StringComparison.OrdinalIgnoreCase) >= 0))
-                            .Select(e => e.TMID.Value)
-                            .Distinct()
-                            .ToHashSet();
+
+                        // Последний (по InspectionID) результат инспекции на каждый TMID.
+                        var latestResultByFullTmid = new Dictionary<int, string>();
+                        foreach (var err in errorsWithInsp)
+                        {
+                            if (!err.TMID.HasValue || err.Inspection == null || err.Inspection.Count == 0) continue;
+                            var lastInsp = err.Inspection
+                                .Where(i => i.ResultTable != null && i.ResultTable.ResultText != null)
+                                .OrderByDescending(i => i.InspectionID)
+                                .FirstOrDefault();
+                            if (lastInsp == null) continue;
+                            string rt = lastInsp.ResultTable.ResultText ?? "";
+                            // Если для одного TMID несколько Error-записей — берём «самый строгий» статус:
+                            // Изолировано > Ремонт > Отклонение разрешено.
+                            if (latestResultByFullTmid.TryGetValue(err.TMID.Value, out string existing))
+                            {
+                                int existRank = ResultSeverityRank(existing);
+                                int newRank = ResultSeverityRank(rt);
+                                if (newRank > existRank)
+                                    latestResultByFullTmid[err.TMID.Value] = rt;
+                            }
+                            else
+                            {
+                                latestResultByFullTmid[err.TMID.Value] = rt;
+                            }
+                        }
+
+                        // Флаг TechnicalMapFull.Inspection для продуктов из грида (ждёт ли инспекции).
+                        var fullInspectionFlag = new Dictionary<int, bool>();
+                        if (fullTmIdsInGrid.Count > 0)
+                        {
+                            var flags = context.TechnicalMapFull.AsNoTracking()
+                                .Where(f => fullTmIdsInGrid.Contains(f.TMID))
+                                .Select(f => new { f.TMID, f.Inspection })
+                                .ToList();
+                            foreach (var it in flags)
+                                fullInspectionFlag[it.TMID] = it.Inspection;
+                        }
+
                         foreach (var d in _allProductData)
                         {
-                            if (d.FullTMID != 0 && tmidApproved.Contains(d.FullTMID))
-                                d.AfterInspection = true;
+                            if (d.FullTMID == 0) continue;
+                            if (latestResultByFullTmid.TryGetValue(d.FullTMID, out string rt))
+                            {
+                                d.ResultText = rt;
+                                if (rt.IndexOf("Отклонение разрешено", StringComparison.OrdinalIgnoreCase) >= 0)
+                                    d.AfterInspection = true;
+                            }
                         }
+
+                        // 1) Скрываем «Изолировано (Не устранимо)» во всех рабочих режимах.
+                        // 2) Скрываем продукты, ждущие инспекции (full.Inspection=true и ещё нет результата).
+                        // 3) Продукты с результатом «Ремонт / На доработку» (flag Inspection=true) показываем
+                        //    только пользователям с правом «Администратор» — чтобы они могли сбросить
+                        //    сборщика/тестировщика или сменить статус. Обычные пользователи их не видят.
+                        _allProductData = _allProductData.Where(d =>
+                        {
+                            string rt = d.ResultText ?? "";
+                            if (rt.IndexOf("Изолировано", StringComparison.OrdinalIgnoreCase) >= 0)
+                                return false;
+                            if (d.FullTMID > 0 && fullInspectionFlag.TryGetValue(d.FullTMID, out bool pending) && pending)
+                            {
+                                if (string.IsNullOrEmpty(rt))
+                                    return false; // ждёт инспектора
+                                if (!_hasAdminPermission)
+                                    return false; // «Ремонт» виден только админу
+                            }
+                            return true;
+                        }).ToList();
                     }
 
                     ApplyFilters();
@@ -1922,6 +2143,26 @@ namespace SaveData1
                 MessageBox.Show("Ошибка загрузки продуктов: " + ExceptionDisplay.MessageWithInners(ex), "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>Ранг «тяжести» результата инспекции. Чем выше — тем хуже.</summary>
+        private static int ResultSeverityRank(string resultText)
+        {
+            if (string.IsNullOrEmpty(resultText)) return 0;
+            if (resultText.IndexOf("Изолировано", StringComparison.OrdinalIgnoreCase) >= 0) return 3;
+            if (resultText.IndexOf("доработку", StringComparison.OrdinalIgnoreCase) >= 0
+                || resultText.IndexOf("Ремонт", StringComparison.OrdinalIgnoreCase) >= 0) return 2;
+            if (resultText.IndexOf("Отклонение разрешено", StringComparison.OrdinalIgnoreCase) >= 0) return 1;
+            return 0;
+        }
+
+        /// <summary>Проверка: результат инспекции позволяет админу открывать/сбрасывать продукт.</summary>
+        private static bool IsReworkableResult(string resultText)
+        {
+            if (string.IsNullOrEmpty(resultText)) return false;
+            return resultText.IndexOf("доработку", StringComparison.OrdinalIgnoreCase) >= 0
+                || resultText.IndexOf("Ремонт", StringComparison.OrdinalIgnoreCase) >= 0
+                || resultText.IndexOf("Отклонение разрешено", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>Применение фильтров к данным грида и подсветка строк по статусу.</summary>
@@ -2015,7 +2256,9 @@ namespace SaveData1
                         SerialNumber = d.SerialNumber,
                         AssemblyDate = d.Date == DateTime.MinValue ? "" : d.Date.ToString("dd.MM.yyyy"),
                         AssemblyTime = (d.TimeStart == TimeSpan.Zero && d.TMID == 0) ? "" : (d.TimeStart.ToString(@"hh\:mm") + "-" + d.TimeEnd.ToString(@"hh\:mm")),
-                        Status = d.AfterInspection ? "После инспекции" : (d.Inspection ? "Инспекция" : (d.IsReady ? (isTesterView ? "Завершено" : "Передан на тестирование") : (d.InProgress ? "В работе" : "Свободно"))),
+                        Status = !string.IsNullOrEmpty(d.ResultText)
+                            ? "После инспекции: " + d.ResultText
+                            : (d.AfterInspection ? "После инспекции" : (d.Inspection ? "Инспекция" : (d.IsReady ? (isTesterView ? "Завершено" : "Передан на тестирование") : (d.InProgress ? "В работе" : "Свободно")))),
                         InProgress = d.InProgress,
                         IsReady = d.IsReady,
                         Inspection = d.Inspection
@@ -2237,6 +2480,7 @@ namespace SaveData1
                 var dataItem = _allProductData.FirstOrDefault(d => d.ProductID == productId && d.TMID == tmId);
                 string serial = (row.Cells["SerialNumber"].Value ?? "").ToString();
                 string category = dataItem?.Category ?? "";
+                string actNumberForPhotos = dataItem?.Act ?? "";
                 string fio = (row.Cells["Assembler"].Value ?? "").ToString();
                 string dateStr = (row.Cells["AssemblyDate"].Value ?? "").ToString();
                 DateTime date = DateTime.Now;
@@ -2322,6 +2566,26 @@ namespace SaveData1
                                 timeEnd = tm.TimeEnd;
                                 fio = _currentUser.UserName ?? "";
                             }
+                            else if (tm != null && _hasAdminPermission && !tm.InProgress && !tm.IsReadt
+                                && IsReworkableResult(dataItem?.ResultText))
+                            {
+                                // Админ переоткрывает продукт после инспекции «Ремонт»/«Отклонение разрешено».
+                                // Снимаем Fault и ожидание инспекции, берём продукт на себя.
+                                tm.InProgress = true;
+                                tm.Fault = false;
+                                tm.UserID = _currentUser.UserID;
+                                var fullRec = context.TechnicalMapFull.Find(tm.TMID);
+                                if (fullRec != null && fullRec.Inspection)
+                                    fullRec.Inspection = false;
+                                context.SaveChanges();
+                                AppLog.Info("Admin re-opened testing after inspection: productId=" + productId
+                                            + " tmtid=" + tmId + " userId=" + _currentUser.UserID);
+                                openedTmId = tmId;
+                                date = tm.Date;
+                                timeStart = tm.TimeStart;
+                                timeEnd = tm.TimeEnd;
+                                fio = _currentUser.UserName ?? "";
+                            }
                             else if (tm != null && tm.UserID == _currentUser.UserID && !tm.InProgress)
                             {
                                 MessageBox.Show("Продукт уже завершён.", "Информация",
@@ -2346,6 +2610,24 @@ namespace SaveData1
                                 tm.InProgress = true;
                                 tm.UserID = _currentUser.UserID;
                                 context.SaveChanges();
+                                openedTmId = tmId;
+                                date = tm.Date;
+                                timeStart = tm.TimeStart;
+                                timeEnd = tm.TimeEnd;
+                                fio = _currentUser.UserName ?? "";
+                            }
+                            else if (tm != null && _hasAdminPermission && !tm.InProgress && !tm.IsReady
+                                && IsReworkableResult(dataItem?.ResultText))
+                            {
+                                tm.InProgress = true;
+                                tm.Fault = false;
+                                tm.UserID = _currentUser.UserID;
+                                var fullRec = context.TechnicalMapFull.Find(tm.TMID);
+                                if (fullRec != null && fullRec.Inspection)
+                                    fullRec.Inspection = false;
+                                context.SaveChanges();
+                                AppLog.Info("Admin re-opened assembly after inspection: productId=" + productId
+                                            + " tmaid=" + tmId + " userId=" + _currentUser.UserID);
                                 openedTmId = tmId;
                                 date = tm.Date;
                                 timeStart = tm.TimeStart;
@@ -2401,7 +2683,7 @@ namespace SaveData1
                             }
 
                             DialogResult formResult;
-                            using (var form = new ProductWorkForm(openedTmId, serial, category, fio, date, timeStart, timeEnd, true))
+                            using (var form = new ProductWorkForm(openedTmId, productId, serial, category, fio, date, timeStart, timeEnd, true, actNumberForPhotos, _currentUser.UserID))
                             {
                                 formResult = form.ShowDialog(this);
                             }
@@ -2422,7 +2704,7 @@ namespace SaveData1
                     }
                     else
                     {
-                        using (var form = new ProductWorkForm(openedTmId, serial, category, fio, date, timeStart, timeEnd, false))
+                        using (var form = new ProductWorkForm(openedTmId, productId, serial, category, fio, date, timeStart, timeEnd, false, actNumberForPhotos, _currentUser.UserID))
                         {
                             if (form.ShowDialog(this) == DialogResult.OK)
                             {
@@ -3697,8 +3979,13 @@ namespace SaveData1
                 return;
             }
 
-            if (MessageBox.Show("Вы уверены, что хотите удалить этого пользователя?",
-                "Подтверждение", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            string userLogin = dgvUsers.SelectedRows[0].Cells.Count > 0 && dgvUsers.Columns.Contains("UserLogin")
+                ? (dgvUsers.SelectedRows[0].Cells["UserLogin"].Value ?? "").ToString() : "";
+            string prompt = string.IsNullOrWhiteSpace(userLogin)
+                ? "Удалить пользователя (ID " + userId + ")?\n\nЭто действие необратимо."
+                : "Удалить пользователя «" + userLogin + "» (ID " + userId + ")?\n\nЭто действие необратимо.";
+            if (MessageBox.Show(prompt, "Подтверждение удаления",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
                 return;
 
             try
@@ -3716,8 +4003,7 @@ namespace SaveData1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка удаления: " + ex.Message, "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Helpers.ExceptionDisplay.ShowError(this, ex, "Ошибка удаления");
             }
         }
 
