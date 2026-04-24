@@ -9,6 +9,7 @@ using System.Windows.Forms;
 using SaveData1;
 using SaveData1.Helpers;
 using SaveData1.Entity;
+using SaveData1.Services;
 
 namespace SaveData1.Froms
 {
@@ -274,7 +275,7 @@ namespace SaveData1.Froms
         {
             string basePath = txtFolderPath.Text.Trim();
             if (string.IsNullOrEmpty(basePath)) return null;
-            return Path.Combine(basePath, $"Отгрузка_{_productTypeName}_Акт_{_actNumber}");
+            return ActFolderPathHelper.BuildActFolderPath(basePath, _productTypeName, _actNumber);
         }
 
         private void LoadProductsForAutocomplete()
@@ -283,10 +284,18 @@ namespace SaveData1.Froms
             {
                 using (var ctx = ConnectionHelper.CreateContext())
                 {
-                    _productsForAutocomplete = ctx.Product.AsNoTracking()
-                        .Where(p => p.ActID == _actId && p.ProducType != null && p.ProducType.TypeName == _productTypeName)
-                        .Select(p => p.ProductSerial)
-                        .Where(s => !string.IsNullOrEmpty(s))
+                    var polNames = ProductLifecycleValidation.PolletnikProducTypeNames;
+                    var rows = ctx.Product.AsNoTracking()
+                        .Where(p => p.ActID == _actId && p.ProducType != null && polNames.Contains(p.ProducType.TypeName)
+                            && p.PostTestingWarehouseAt == null && !p.QualityControlPassed)
+                        .Select(p => new { p.ProductID, p.ProductSerial })
+                        .ToList();
+                    var busy = ProductLifecycleService.GetProductIdsWhereLatestTestingIsInProgress(rows.Select(r => r.ProductID));
+                    _productsForAutocomplete = rows
+                        .Where(r => !busy.Contains(r.ProductID)
+                            && !ProductLifecycleValidation.LatestTestingSucceeded(ctx, r.ProductID)
+                            && !string.IsNullOrEmpty(r.ProductSerial))
+                        .Select(r => r.ProductSerial)
                         .Distinct()
                         .OrderBy(s => s)
                         .ToList();
@@ -311,8 +320,9 @@ namespace SaveData1.Froms
             {
                 using (var ctx = ConnectionHelper.CreateContext())
                 {
+                    var polNamesErr = ProductLifecycleValidation.PolletnikProducTypeNames;
                     var products = ctx.Product.AsNoTracking()
-                        .Where(p => p.ActID == _actId && p.ProducType != null && p.ProducType.TypeName == _productTypeName)
+                        .Where(p => p.ActID == _actId && p.ProducType != null && polNamesErr.Contains(p.ProducType.TypeName))
                         .ToDictionary(p => p.ProductID, p => p.ProductSerial ?? "");
                     var tflights = ctx.TechnicalMatFlight.AsNoTracking()
                         .Where(t => t.Test_Pass == false && products.ContainsKey(t.ProductID))
@@ -498,6 +508,12 @@ namespace SaveData1.Froms
                 }
             }
 
+            if (!TryValidatePolletnikRowsNotLockedByOther(rows, out string lockErr))
+            {
+                MessageBox.Show(lockErr, "Тестирование полётников", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             _isStarted = true;
             btnStart.Enabled = false;
             btnStop.Enabled = true;
@@ -508,8 +524,98 @@ namespace SaveData1.Froms
             foreach (var r in rows)
                 r.SetMonitoringMode(true);
 
+            // Помечаем все запланированные продукты как «В работе» в БД — чтобы другие
+            // сотрудники не смогли начать параллельное тестирование тех же продуктов.
+            TryMarkPlannedProductsInProgress(rows);
+
             lblMainStatus.Text = "Статус: Мониторинг запущен";
             lblMainStatus.ForeColor = Color.Green;
+        }
+
+        /// <summary>Не даём стартовать мониторинг, если какой‑то С/Н уже «в работе» у другого сотрудника.</summary>
+        private bool TryValidatePolletnikRowsNotLockedByOther(List<AutoTestRowControl> rows, out string error)
+        {
+            error = null;
+            if (_user == null || _actId <= 0 || rows == null) return true;
+            foreach (var row in rows)
+            {
+                string ser = row.SerialNumber?.Trim() ?? "";
+                if (string.IsNullOrEmpty(ser)) continue;
+                int productId;
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var p = ctx.Product.AsNoTracking().FirstOrDefault(x => x.ActID == _actId && x.ProductSerial == ser);
+                    if (p == null) continue;
+                    productId = p.ProductID;
+                }
+                if (!ProductLifecycleService.TryValidateAutoTestAccess(productId, _user.UserID, out string block))
+                {
+                    error = $"Серийный номер «{ser}»: {block} Дождитесь завершения или обратитесь к администратору.";
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Фиксирует «В работе» при копировании/сохранении логов с флешки (актуальный С/Н в БД).
+        /// Дублирует пометку со «Старт», чтобы статус обновился даже если список на старте устарел,
+        /// и чтобы сотрудник увидел состояние в момент реального копирования.
+        /// </summary>
+        private void TryMarkPolletnikInProgressForSerial(string productSerial)
+        {
+            if (_user == null || _actId <= 0) return;
+            string ser = (productSerial ?? "").Trim();
+            if (string.IsNullOrEmpty(ser)) return;
+            try
+            {
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var p = ctx.Product.AsNoTracking().FirstOrDefault(x => x.ActID == _actId && x.ProductSerial == ser);
+                    if (p != null)
+                        ProductLifecycleService.MarkTestingInProgress(p.ProductID, _user.UserID);
+                }
+                NotifyEmployeeProductsRefresh();
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[Статус] С/Н {ser}: не удалось пометить «в работе» при копировании — {ex.Message}");
+            }
+        }
+
+        private void TryMarkPlannedProductsInProgress(System.Collections.Generic.List<AutoTestRowControl> rows)
+        {
+            if (_user == null || _actId <= 0 || rows == null) return;
+            try
+            {
+                var serials = rows.Select(r => r.SerialNumber?.Trim() ?? "")
+                                  .Where(s => !string.IsNullOrEmpty(s))
+                                  .Distinct()
+                                  .ToList();
+                if (serials.Count == 0) return;
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var products = ctx.Product.AsNoTracking()
+                        .Where(p => p.ActID == _actId && serials.Contains(p.ProductSerial))
+                        .Select(p => new { p.ProductID, p.ProductSerial })
+                        .ToList();
+                    foreach (var pr in products)
+                    {
+                        try
+                        {
+                            ProductLifecycleService.MarkTestingInProgress(pr.ProductID, _user.UserID);
+                        }
+                        catch (Exception exOne)
+                        {
+                            AppendLog($"[Статус] С/Н {pr.ProductSerial}: не удалось пометить «в работе» — {exOne.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[Статус] Не удалось пометить продукты «в работе»: {ex.Message}");
+            }
         }
 
         private void btnStop_Click(object sender, EventArgs e)
@@ -568,7 +674,7 @@ namespace SaveData1.Froms
             {
                 rootPath = txtFolderPath.Text;
                 if (!string.IsNullOrEmpty(rootPath))
-                    rootPath = Path.Combine(rootPath, $"Отгрузка_{_productTypeName}_Акт_{_actNumber}");
+                    rootPath = ActFolderPathHelper.BuildActFolderPath(rootPath, _productTypeName, _actNumber);
             }
             if (string.IsNullOrEmpty(rootPath)) return;
 
@@ -587,9 +693,32 @@ namespace SaveData1.Froms
 
         private async void ProcessDriveAsync(string driveLetter, string volSerial, AutoTestRowControl row, string rootPath)
         {
-            string productSerial = row.SerialNumber;
+            string productSerial = (row.SerialNumber ?? "").Trim();
             string standNumber = row.Stand;
             string targetFolder = Path.Combine(rootPath, productSerial);
+
+            if (!string.IsNullOrEmpty(productSerial) && _user != null && _actId > 0)
+            {
+                int? pidUsb = null;
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var p = ctx.Product.AsNoTracking().FirstOrDefault(x => x.ActID == _actId && x.ProductSerial == productSerial);
+                    if (p != null) pidUsb = p.ProductID;
+                }
+                if (pidUsb.HasValue &&
+                    !ProductLifecycleService.TryValidateAutoTestAccess(pidUsb.Value, _user.UserID, out string blockUsb))
+                {
+                    AppendLog($"[Занято] С/Н: {productSerial} — {blockUsb}");
+                    void showLocked()
+                    {
+                        MessageBox.Show(blockUsb, "Тестирование полётников", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        row.SetStatus("Недоступен для теста", Color.Red);
+                    }
+                    if (InvokeRequired) Invoke(new Action(showLocked));
+                    else showLocked();
+                    return;
+                }
+            }
 
             bool hasData = await Task.Run(() => UsbHelper.HasFilesWithExtensions(driveLetter, new[] { ".txt", ".log" }));
             if (!hasData)
@@ -601,6 +730,7 @@ namespace SaveData1.Froms
             }
 
             row.SetStatus("Копирование...", Color.Orange);
+            TryMarkPolletnikInProgressForSerial(productSerial);
 
             Directory.CreateDirectory(rootPath);
             string tempFolder = Path.Combine(rootPath, "_temp_" + Guid.NewGuid().ToString("N"));
@@ -661,6 +791,9 @@ namespace SaveData1.Froms
                 }
             }
 
+            // После возможного изменения С/Н в диалоге конфликта — ещё раз фиксируем «В работе» по финальному номеру.
+            TryMarkPolletnikInProgressForSerial(productSerial);
+
             try
             {
                 if (Directory.Exists(targetFolder))
@@ -698,6 +831,20 @@ namespace SaveData1.Froms
                 ctx.TechnicalMatFlight.Add(tflight);
                 ctx.SaveChanges();
                 int tflightId = tflight.TFlightID;
+
+                // Обновляем TechnicalMapTesting — только эта запись реально определяет статус
+                // продукта в EmployeeForm/QualityControlForm/PostTestingShipToWarehouseForm.
+                try
+                {
+                    if (testPassed)
+                        ProductLifecycleService.RecordSuccessfulAutoTest(product.ProductID, _user.UserID);
+                    else
+                        ProductLifecycleService.RecordFailedAutoTest(product.ProductID, _user.UserID);
+                }
+                catch (Exception lcEx)
+                {
+                    AppendLog($"[Статус] Не удалось обновить статус тестирования в БД: {lcEx.Message}");
+                }
 
                 try
                 {

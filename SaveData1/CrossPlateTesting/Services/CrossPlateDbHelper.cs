@@ -71,7 +71,7 @@ namespace SaveData1.CrossPlateTesting.Services
             if (productTypeId == 0)
                 throw new InvalidOperationException("Продукт не найден или не задан тип (TypeID).");
 
-            var full = ctx.TechnicalMapFull.FirstOrDefault(f => f.ProductID == productId);
+            var full = ProductLifecycleValidation.GetCanonicalTechnicalMapFullForTesting(ctx, productId);
             if (full == null)
             {
                 full = new TechnicalMapFull { ProductID = productId, Inspection = false };

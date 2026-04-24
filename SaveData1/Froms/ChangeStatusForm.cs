@@ -8,15 +8,18 @@ namespace SaveData1
     /// <summary>Диалог смены статуса продукта (В работе / Готово). Доступен только администратору из грида продуктов.</summary>
     public partial class ChangeStatusForm : Form
     {
-        private readonly int _tmId;
+        private readonly int _recordId;
+        /// <summary>true — правим <see cref="Entity.TechnicalMapTesting"/> (TMTID); false — <see cref="Entity.TechnicalMapAssembly"/> (TMAID).</summary>
+        private readonly bool _isTechnicalMapTesting;
 
         public bool NewInProgress { get; private set; }
         public bool NewIsReady { get; private set; }
 
-        public ChangeStatusForm(int tmId, bool currentInProgress, bool currentIsReady)
+        public ChangeStatusForm(int recordId, bool currentInProgress, bool currentIsReady, bool isTechnicalMapTesting = false)
         {
             InitializeComponent();
-            _tmId = tmId;
+            _recordId = recordId;
+            _isTechnicalMapTesting = isTechnicalMapTesting;
 
             cmbStatus.Items.Add(new StatusItem("В работе", true, false));
             cmbStatus.Items.Add(new StatusItem("Готово", false, true));
@@ -28,7 +31,7 @@ namespace SaveData1
                 cmbStatus.SelectedIndex = 0;
         }
 
-        /// <summary>Записывает выбранный статус в TechnicalMapAssembly по TMAID.</summary>
+        /// <summary>Записывает статус в TechnicalMapAssembly (сборка) или TechnicalMapTesting (тест / полётники / кросс-платы / Bridge).</summary>
         private void btnOk_Click(object sender, EventArgs e)
         {
             var item = cmbStatus.SelectedItem as StatusItem;
@@ -38,15 +41,37 @@ namespace SaveData1
             {
                 using (var context = ConnectionHelper.CreateContext())
                 {
-                    var tm = context.TechnicalMapAssembly.Find(_tmId);
-                    if (tm == null)
+                    if (_isTechnicalMapTesting)
                     {
-                        MessageBox.Show("Запись не найдена.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return;
+                        var tst = context.TechnicalMapTesting.Find(_recordId);
+                        if (tst == null)
+                        {
+                            MessageBox.Show("Запись тестирования не найдена.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+                        tst.InProgress = item.InProgress;
+                        tst.IsReadt = item.IsReady;
+                        if (item.IsReady)
+                            tst.Fault = false;
+                        var now = DateTime.Now;
+                        tst.Date = now;
+                        if (item.InProgress && tst.TimeStart == TimeSpan.Zero)
+                            tst.TimeStart = now.TimeOfDay;
+                        tst.TimeEnd = now.TimeOfDay;
+                        context.SaveChanges();
                     }
-                    tm.InProgress = item.InProgress;
-                    tm.IsReady = item.IsReady;
-                    context.SaveChanges();
+                    else
+                    {
+                        var tm = context.TechnicalMapAssembly.Find(_recordId);
+                        if (tm == null)
+                        {
+                            MessageBox.Show("Запись сборки не найдена.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+                        tm.InProgress = item.InProgress;
+                        tm.IsReady = item.IsReady;
+                        context.SaveChanges();
+                    }
                 }
                 NewInProgress = item.InProgress;
                 NewIsReady = item.IsReady;

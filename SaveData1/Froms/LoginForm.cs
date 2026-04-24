@@ -183,13 +183,15 @@ namespace SaveData1
                 var flags = UserPermissionsService.GetFlags(user);
 
                 Form nextForm;
-                if (flags.IsStorage)
-                {
-                    nextForm = new WarehouseForm(user);
-                }
-                else if (flags.CanUseEmployeeForm)
+                // Сначала форма сотрудника, если есть права сборки/теста/контроля и т.д. —
+                // иначе пользователь с ролью Storage + тестировщик попадал бы только на склад.
+                if (flags.CanUseEmployeeForm)
                 {
                     nextForm = new EmployeeForm(user);
+                }
+                else if (flags.IsStorage)
+                {
+                    nextForm = new WarehouseForm(user);
                 }
                 else
                 {

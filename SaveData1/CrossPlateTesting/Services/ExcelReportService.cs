@@ -27,6 +27,18 @@ namespace SaveData1.CrossPlateTesting.Services
             if (string.IsNullOrWhiteSpace(folderPath))
                 throw new InvalidOperationException("Укажите папку для сохранения Excel-отчётов.");
 
+            // Обязательно гарантируем наличие папки ДО SaveAs — Excel COM падает
+            // странной ошибкой «не удаётся получить доступ к файлу», если папки нет.
+            try
+            {
+                Directory.CreateDirectory(folderPath);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Не удалось создать папку для Excel-отчётов: {folderPath}\n{ex.Message}", ex);
+            }
+
             string fileName = $"Отчет_Крос_Платы_Акт_{actNumber}.xlsx";
             string fullPath = Path.Combine(folderPath, fileName);
 
@@ -75,7 +87,17 @@ namespace SaveData1.CrossPlateTesting.Services
             if (!File.Exists(fullPath))
             {
                 RemoveDefaultSheets();
-                _workbook.SaveAs(fullPath);
+                try
+                {
+                    // XlFileFormat.xlOpenXMLWorkbook = 51 — явный формат .xlsx; без этого
+                    // Excel иногда пытается сохранить в формате по умолчанию и ошибается.
+                    _workbook.SaveAs(fullPath, 51);
+                }
+                catch (COMException)
+                {
+                    // fallback — старый вариант
+                    _workbook.SaveAs(fullPath);
+                }
             }
 
             _successTestCounter = GetLastTestNumber(_sheetSuccess);

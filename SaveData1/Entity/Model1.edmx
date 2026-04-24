@@ -158,6 +158,17 @@
           <Property Name="PathID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
           <Property Name="ActNumber" Type="nvarchar" MaxLength="128" Nullable="false" />
         </EntityType>
+        <EntityType Name="ShipmentWithoutTesting">
+          <Key>
+            <PropertyRef Name="ShipmentID" />
+          </Key>
+          <Property Name="ShipmentID" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="ActID" Type="int" Nullable="false" />
+          <Property Name="UserID" Type="int" Nullable="false" />
+          <Property Name="Reason" Type="nvarchar" MaxLength="1000" Nullable="false" />
+          <Property Name="ShipmentUtc" Type="datetime2" Precision="0" Nullable="false" />
+          <Property Name="ProductCount" Type="int" Nullable="false" />
+        </EntityType>
         <EntityType Name="sysdiagrams">
           <Key>
             <PropertyRef Name="diagram_id" />
@@ -565,6 +576,30 @@
             </Dependent>
           </ReferentialConstraint>
         </Association>
+        <Association Name="FK_ShipmentWithoutTesting_Act">
+          <End Role="Act" Type="Self.Act" Multiplicity="1" />
+          <End Role="ShipmentWithoutTesting" Type="Self.ShipmentWithoutTesting" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Act">
+              <PropertyRef Name="ActID" />
+            </Principal>
+            <Dependent Role="ShipmentWithoutTesting">
+              <PropertyRef Name="ActID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ShipmentWithoutTesting_User">
+          <End Role="UsersProfile" Type="Self.UsersProfile" Multiplicity="1" />
+          <End Role="ShipmentWithoutTesting" Type="Self.ShipmentWithoutTesting" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="ShipmentWithoutTesting">
+              <PropertyRef Name="UserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
         <Association Name="FK_TechnicalMapAssembly_Description">
           <End Role="Description" Type="Self.Description" Multiplicity="0..1" />
           <End Role="TechnicalMapAssembly" Type="Self.TechnicalMapAssembly" Multiplicity="*" />
@@ -795,6 +830,7 @@
           <EntitySet Name="ResultTable" EntityType="Self.ResultTable" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="Role" EntityType="Self.Role" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="SavePath" EntityType="Self.SavePath" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="ShipmentWithoutTesting" EntityType="Self.ShipmentWithoutTesting" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="sysdiagrams" EntityType="Self.sysdiagrams" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="TechnicalMapAssembly" EntityType="Self.TechnicalMapAssembly" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="TechnicalMapFull" EntityType="Self.TechnicalMapFull" Schema="dbo" store:Type="Tables" />
@@ -904,6 +940,14 @@
             <End Role="Country" EntitySet="Country" />
             <End Role="ProducType" EntitySet="ProducType" />
           </AssociationSet>
+          <AssociationSet Name="FK_ShipmentWithoutTesting_Act" Association="Self.FK_ShipmentWithoutTesting_Act">
+            <End Role="Act" EntitySet="Act" />
+            <End Role="ShipmentWithoutTesting" EntitySet="ShipmentWithoutTesting" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ShipmentWithoutTesting_User" Association="Self.FK_ShipmentWithoutTesting_User">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="ShipmentWithoutTesting" EntitySet="ShipmentWithoutTesting" />
+          </AssociationSet>
           <AssociationSet Name="FK_TechnicalMapAssembly_Description" Association="Self.FK_TechnicalMapAssembly_Description">
             <End Role="Description" EntitySet="Description" />
             <End Role="TechnicalMapAssembly" EntitySet="TechnicalMapAssembly" />
@@ -978,6 +1022,7 @@
           <Property Name="IsReady" Type="Boolean" Nullable="false" />
           <NavigationProperty Name="BridgeLogSave" Relationship="Self.FK_BridgeLogSave_Act" FromRole="Act" ToRole="BridgeLogSave" />
           <NavigationProperty Name="Product" Relationship="Self.FK_Product_Act" FromRole="Act" ToRole="Product" />
+          <NavigationProperty Name="ShipmentWithoutTesting" Relationship="SaveDataModel.FK_ShipmentWithoutTesting_Act" FromRole="Act" ToRole="ShipmentWithoutTesting" />
         </EntityType>
         <EntityType Name="BridgeLogSave">
           <Key>
@@ -1242,6 +1287,7 @@
           <NavigationProperty Name="UserWithPermissions" Relationship="Self.FK_UserWithPermissions_UsersProfile" FromRole="UsersProfile" ToRole="UserWithPermissions" />
           <NavigationProperty Name="Product3" Relationship="SaveDataModel.FK_Product_AssemblyManualUnlockByUser_UsersProfile" FromRole="UsersProfile" ToRole="Product" />
           <NavigationProperty Name="ProductPhoto" Relationship="SaveDataModel.FK_ProductPhoto_User" FromRole="UsersProfile" ToRole="ProductPhoto" />
+          <NavigationProperty Name="ShipmentWithoutTesting" Relationship="SaveDataModel.FK_ShipmentWithoutTesting_User" FromRole="UsersProfile" ToRole="ShipmentWithoutTesting" />
         </EntityType>
         <EntityType Name="UserWithPermissions">
           <Key>
@@ -1814,6 +1860,15 @@
             <End Role="UsersProfile" EntitySet="UsersProfile" />
             <End Role="ProductPhoto" EntitySet="ProductPhoto" />
           </AssociationSet>
+          <EntitySet Name="ShipmentWithoutTesting" EntityType="SaveDataModel.ShipmentWithoutTesting" />
+          <AssociationSet Name="FK_ShipmentWithoutTesting_Act" Association="SaveDataModel.FK_ShipmentWithoutTesting_Act">
+            <End Role="Act" EntitySet="Act" />
+            <End Role="ShipmentWithoutTesting" EntitySet="ShipmentWithoutTesting" />
+          </AssociationSet>
+          <AssociationSet Name="FK_ShipmentWithoutTesting_User" Association="SaveDataModel.FK_ShipmentWithoutTesting_User">
+            <End Role="UsersProfile" EntitySet="UsersProfile" />
+            <End Role="ShipmentWithoutTesting" EntitySet="ShipmentWithoutTesting" />
+          </AssociationSet>
         </EntityContainer>
         <ComplexType Name="sp_helpdiagramdefinition_Result">
           <Property Type="Int32" Name="version" Nullable="true" />
@@ -1905,6 +1960,43 @@
             </Principal>
             <Dependent Role="ProductPhoto">
               <PropertyRef Name="ByUserID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <EntityType Name="ShipmentWithoutTesting">
+          <Key>
+            <PropertyRef Name="ShipmentID" />
+          </Key>
+          <Property Name="ShipmentID" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="ActID" Type="Int32" Nullable="false" />
+          <Property Name="UserID" Type="Int32" Nullable="false" />
+          <Property Name="Reason" Type="String" Nullable="false" MaxLength="1000" FixedLength="false" Unicode="true" />
+          <Property Name="ShipmentUtc" Type="DateTime" Nullable="false" Precision="0" />
+          <Property Name="ProductCount" Type="Int32" Nullable="false" />
+          <NavigationProperty Name="Act" Relationship="SaveDataModel.FK_ShipmentWithoutTesting_Act" FromRole="ShipmentWithoutTesting" ToRole="Act" />
+          <NavigationProperty Name="UsersProfile" Relationship="SaveDataModel.FK_ShipmentWithoutTesting_User" FromRole="ShipmentWithoutTesting" ToRole="UsersProfile" />
+        </EntityType>
+        <Association Name="FK_ShipmentWithoutTesting_Act">
+          <End Type="SaveDataModel.Act" Role="Act" Multiplicity="1" />
+          <End Type="SaveDataModel.ShipmentWithoutTesting" Role="ShipmentWithoutTesting" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="Act">
+              <PropertyRef Name="ActID" />
+            </Principal>
+            <Dependent Role="ShipmentWithoutTesting">
+              <PropertyRef Name="ActID" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_ShipmentWithoutTesting_User">
+          <End Type="SaveDataModel.UsersProfile" Role="UsersProfile" Multiplicity="1" />
+          <End Type="SaveDataModel.ShipmentWithoutTesting" Role="ShipmentWithoutTesting" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="UsersProfile">
+              <PropertyRef Name="UserID" />
+            </Principal>
+            <Dependent Role="ShipmentWithoutTesting">
+              <PropertyRef Name="UserID" />
             </Dependent>
           </ReferentialConstraint>
         </Association>
@@ -2213,6 +2305,18 @@
                 <ScalarProperty Name="SequenceNo" ColumnName="SequenceNo" />
                 <ScalarProperty Name="ProductID" ColumnName="ProductID" />
                 <ScalarProperty Name="ProductPhotoID" ColumnName="ProductPhotoID" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="ShipmentWithoutTesting">
+            <EntityTypeMapping TypeName="SaveDataModel.ShipmentWithoutTesting">
+              <MappingFragment StoreEntitySet="ShipmentWithoutTesting">
+                <ScalarProperty Name="ProductCount" ColumnName="ProductCount" />
+                <ScalarProperty Name="ShipmentUtc" ColumnName="ShipmentUtc" />
+                <ScalarProperty Name="Reason" ColumnName="Reason" />
+                <ScalarProperty Name="UserID" ColumnName="UserID" />
+                <ScalarProperty Name="ActID" ColumnName="ActID" />
+                <ScalarProperty Name="ShipmentID" ColumnName="ShipmentID" />
               </MappingFragment>
             </EntityTypeMapping>
           </EntitySetMapping>

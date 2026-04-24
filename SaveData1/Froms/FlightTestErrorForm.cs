@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows.Forms;
 using SaveData1.Entity;
 using SaveData1.Helpers;
+using SaveData1.Services;
 
 namespace SaveData1.Froms
 {
@@ -173,7 +174,7 @@ namespace SaveData1.Froms
                             }
                             catch { }
 
-                            var tmf = ctx.TechnicalMapFull.FirstOrDefault(t => t.ProductID == _productId);
+                            var tmf = ProductLifecycleValidation.GetCanonicalTechnicalMapFullForTesting(ctx, _productId);
                             var err = ctx.Error.Find(errId);
                             if (err != null && tmf != null)
                                 err.TMID = tmf.TMID;
@@ -208,7 +209,7 @@ namespace SaveData1.Froms
                             }
                             catch { }
 
-                            var tmf = ctx.TechnicalMapFull.FirstOrDefault(t => t.ProductID == _productId);
+                            var tmf = ProductLifecycleValidation.GetCanonicalTechnicalMapFullForTesting(ctx, _productId);
                             if (tmf != null)
                             {
                                 tmf.Inspection = true;
@@ -227,6 +228,17 @@ namespace SaveData1.Froms
                             tf.Test_Pass = true;
                             ctx.SaveChanges();
                         }
+
+                        var tmf = ProductLifecycleValidation.GetCanonicalTechnicalMapFullForTesting(ctx, _productId);
+                        if (tmf != null && tmf.Inspection)
+                        {
+                            tmf.Inspection = false;
+                            ctx.SaveChanges();
+                        }
+
+                        int uid = _user?.UserID ?? 0;
+                        if (uid != 0)
+                            ProductLifecycleService.RecordSuccessfulAutoTest(_productId, uid);
                     }
                 }
 

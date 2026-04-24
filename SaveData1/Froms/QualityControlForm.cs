@@ -4,6 +4,7 @@ using System.Data.Entity;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using SaveData1.CrossPlateTesting.Services;
 using SaveData1.Entity;
 using SaveData1.Helpers;
 using SaveData1.Services;
@@ -42,30 +43,96 @@ namespace SaveData1.Froms
             dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgv.ReadOnly = true;
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "ProductID", HeaderText = "ID", Visible = false });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Serial", HeaderText = "Серийный номер", FillWeight = 50 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "State", HeaderText = "Состояние", FillWeight = 50 });
-
-            var rows = await DbOperation.RunAsync(ctx => ctx.TechnicalMapFull
-                .AsNoTracking()
-                .Include(f => f.Product)
-                .Include("TechnicalMapAssembly")
-                .Include("TechnicalMapTesting")
-                .Where(f => f.Product.Act != null && f.Product.Act.ActNumber == _actNumber
-                    && !f.Inspection
-                    && f.TechnicalMapAssembly.Any(a => a.IsReady)
-                    && f.Product.PostTestingWarehouseAt == null)
-                .ToList(),
-                "QualityControlForm.LoadGrid");
-
-            foreach (var f in rows.OrderBy(x => x.Product.ProductSerial))
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Category", HeaderText = "Категория", Visible = false });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Serial", HeaderText = "Серийный номер", FillWeight = 40 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "State", HeaderText = "Состояние", FillWeight = 40 });
+            dgv.Columns.Add(new DataGridViewButtonColumn
             {
-                var tst = f.TechnicalMapTesting?.OrderByDescending(t => t.TMTID).FirstOrDefault();
-                if (tst == null || !tst.IsReadt || tst.Fault)
-                    continue;
-                bool alreadyQc = f.Product.QualityControlPassed;
-                int idx = dgv.Rows.Add(f.ProductID, f.Product.ProductSerial, alreadyQc ? "Уже прошёл контроль (БД)" : "Ожидает скан");
-                if (alreadyQc)
+                Name = "NonConformity",
+                HeaderText = "Ярлык несоответствия",
+                FillWeight = 20,
+                Text = "Создать ярлык",
+                UseColumnTextForButtonValue = true
+            });
+            // Подписка выполняется один раз — при повторной загрузке колонки пересоздаются, а хэндлер
+            // остаётся живым и продолжает работать с новым dgv.
+            dgv.CellContentClick -= Dgv_OnCellContentClick;
+            dgv.CellContentClick += Dgv_OnCellContentClick;
+
+            string bridgeTypeName = BridgeDbHelper.GetBridgeProductTypeName();
+            var rowItems = await DbOperation.RunAsync(ctx =>
+            {
+                var rows = ctx.TechnicalMapFull
+                    .AsNoTracking()
+                    .Include(f => f.Product)
+                    .Include("Product.ProducType")
+                    .Include("TechnicalMapAssembly")
+                    .Include("TechnicalMapTesting")
+                    .Where(f => f.Product.Act != null && f.Product.Act.ActNumber == _actNumber
+                        && !f.Inspection
+                        && f.Product.PostTestingWarehouseAt == null
+                        && (f.TechnicalMapAssembly.Any(a => a.IsReady)
+                            || (f.Product.ProducType != null
+                                && (f.Product.ProducType.TypeName == ProductLifecycleValidation.PolletnikiProductTypeName
+                                    || f.Product.ProducType.TypeName == CrossPlateDbHelper.CrossProductTypeName
+                                    || f.Product.ProducType.TypeName == bridgeTypeName))))
+                    .ToList();
+
+                var list = new System.Collections.Generic.List<(int ProductID, string Category, string Serial, bool AlreadyQc)>();
+                // Одна строка на продукт: при нескольких техкартах — последняя по TMID среди отфильтрованных выше.
+                foreach (var f in rows.GroupBy(r => r.ProductID)
+                             .Select(g => g.OrderByDescending(x => x.TMID).First())
+                             .OrderBy(x => x.Product.ProductSerial))
+                {
+                    if (!ProductLifecycleValidation.LatestTestingSucceeded(ctx, f.ProductID))
+                        continue;
+                    list.Add((f.ProductID, f.Product.ProducType?.TypeName ?? "", f.Product.ProductSerial ?? "",
+                        f.Product.QualityControlPassed));
+                }
+                return list;
+            }, "QualityControlForm.LoadGrid");
+
+            foreach (var item in rowItems)
+            {
+                int idx = dgv.Rows.Add(item.ProductID, item.Category, item.Serial,
+                    item.AlreadyQc ? "Уже прошёл контроль (БД)" : "Ожидает скан");
+                if (item.AlreadyQc)
                     dgv.Rows[idx].DefaultCellStyle.BackColor = Color.LightGray;
+            }
+        }
+
+        /// <summary>Обработчик клика по колонке «Ярлык несоответствия».</summary>
+        private void Dgv_OnCellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            if (!(dgv.Columns[e.ColumnIndex] is DataGridViewButtonColumn)) return;
+            if (dgv.Columns[e.ColumnIndex].Name != "NonConformity") return;
+
+            var row = dgv.Rows[e.RowIndex];
+            if (row?.Cells["ProductID"]?.Value == null) return;
+
+            int productId;
+            try { productId = Convert.ToInt32(row.Cells["ProductID"].Value); }
+            catch { return; }
+
+            string serial = (row.Cells["Serial"].Value ?? "").ToString();
+            string category = (row.Cells["Category"].Value ?? "").ToString();
+            string fio = _currentUser?.UserName ?? "";
+
+            // В окне контроля ярлык создаётся только в категории «Склад → приёмка» (PlaceID=1).
+            // Это соответствует существующей логике: брак, обнаруженный на контроле, идёт в приёмку.
+            using (var dlg = new NonConformityForm(productId, serial, category, _actNumber, fio,
+                showPlaceChoice: false, fixedPlaceId: 1))
+            {
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    row.DefaultCellStyle.BackColor = Color.LightCoral;
+                    row.Cells["State"].Value = "Ярлык несоответствия создан";
+                    lblStatus.Text = $"Ярлык создан для: {serial}";
+                    // Удаляем из списка «отсканированных», чтобы продукт не попал в контроль:
+                    _scannedProductIds.Remove(productId);
+                    try { System.Media.SystemSounds.Exclamation.Play(); } catch { }
+                }
             }
         }
 

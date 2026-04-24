@@ -150,14 +150,17 @@ namespace SaveData1.CrossPlateTesting.Services
             return null;
         }
 
-        private static async Task SendHeartbeatsAsync(UdpClient client, ref byte seq, int count, int intervalMs, CancellationToken ct)
+        // В async-методе нельзя использовать ref/in/out параметры. Передаём seq как массив из
+        // одного элемента — изменения видны вызывающей стороне.
+        private static async Task SendHeartbeatsAsync(UdpClient client, byte[] seqRef, int count, int intervalMs, CancellationToken ct)
         {
+            if (seqRef == null || seqRef.Length == 0) throw new ArgumentException("seqRef must be a 1-element array", nameof(seqRef));
             for (int i = 0; i < count; i++)
             {
                 if (ct.IsCancellationRequested) return;
                 try
                 {
-                    byte[] heartbeat = BuildHeartbeatPacket(seq++, GCS_SYS_ID, GCS_COMP_ID);
+                    byte[] heartbeat = BuildHeartbeatPacket(seqRef[0]++, GCS_SYS_ID, GCS_COMP_ID);
                     client.Send(heartbeat, heartbeat.Length);
                 }
                 catch (SocketException) { }
@@ -197,7 +200,7 @@ namespace SaveData1.CrossPlateTesting.Services
                     client.Connect(host, port);
 
                     byte seq = 0;
-                    await SendHeartbeatsAsync(client, ref seq, 2, DelaySettings.MavLink_HeartbeatInterval, ct);
+                    { var seqRef = new byte[] { seq }; await SendHeartbeatsAsync(client, seqRef, 2, DelaySettings.MavLink_HeartbeatInterval, ct); seq = seqRef[0]; }
                     if (ct.IsCancellationRequested) return null;
                     try { await Task.Delay(DelaySettings.MavLink_AfterHeartbeat, ct); }
                     catch (OperationCanceledException) { return null; }
@@ -394,7 +397,7 @@ namespace SaveData1.CrossPlateTesting.Services
                     client.Connect(host, port);
 
                     byte seq = 0;
-                    await SendHeartbeatsAsync(client, ref seq, 2, DelaySettings.MavLink_HeartbeatInterval, ct);
+                    { var seqRef = new byte[] { seq }; await SendHeartbeatsAsync(client, seqRef, 2, DelaySettings.MavLink_HeartbeatInterval, ct); seq = seqRef[0]; }
                     if (ct.IsCancellationRequested) return false;
                     try { await Task.Delay(DelaySettings.MavLink_SetAfterHeartbeat, ct); }
                     catch (OperationCanceledException) { return false; }
@@ -517,7 +520,7 @@ namespace SaveData1.CrossPlateTesting.Services
                     client.Connect(host, port);
 
                     byte seq = 0;
-                    await SendHeartbeatsAsync(client, ref seq, 2, DelaySettings.MavLink_HeartbeatInterval, ct);
+                    { var seqRef = new byte[] { seq }; await SendHeartbeatsAsync(client, seqRef, 2, DelaySettings.MavLink_HeartbeatInterval, ct); seq = seqRef[0]; }
                     if (ct.IsCancellationRequested) return false;
                     try { await Task.Delay(DelaySettings.MavLink_CommandAfterHeartbeat, ct); }
                     catch (OperationCanceledException) { return false; }
@@ -609,7 +612,7 @@ namespace SaveData1.CrossPlateTesting.Services
                 {
                     client.Connect(host, port);
                     byte seq = 0;
-                    await SendHeartbeatsAsync(client, ref seq, 2, DelaySettings.MavLink_RcHeartbeat, ct);
+                    { var seqRef = new byte[] { seq }; await SendHeartbeatsAsync(client, seqRef, 2, DelaySettings.MavLink_RcHeartbeat, ct); seq = seqRef[0]; }
                     if (ct.IsCancellationRequested) return false;
 
                     ushort[] channels = new ushort[8];
@@ -668,7 +671,7 @@ namespace SaveData1.CrossPlateTesting.Services
                 {
                     client.Connect(host, port);
                     byte seq = 0;
-                    await SendHeartbeatsAsync(client, ref seq, 2, DelaySettings.MavLink_HeartbeatInterval, ct);
+                    { var seqRef = new byte[] { seq }; await SendHeartbeatsAsync(client, seqRef, 2, DelaySettings.MavLink_HeartbeatInterval, ct); seq = seqRef[0]; }
                     if (ct.IsCancellationRequested) return false;
                     try { await Task.Delay(DelaySettings.MavLink_CommandAfterHeartbeat, ct); }
                     catch (OperationCanceledException) { return false; }

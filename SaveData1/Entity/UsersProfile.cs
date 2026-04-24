@@ -28,6 +28,7 @@ namespace SaveData1.Entity
             this.UserWithPermissions = new HashSet<UserWithPermissions>();
             this.Product3 = new HashSet<Product>();
             this.ProductPhoto = new HashSet<ProductPhoto>();
+            this.ShipmentWithoutTesting = new HashSet<ShipmentWithoutTesting>();
         }
     
         public int UserID { get; set; }
@@ -59,5 +60,7 @@ namespace SaveData1.Entity
         public virtual ICollection<Product> Product3 { get; set; }
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<ProductPhoto> ProductPhoto { get; set; }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
+        public virtual ICollection<ShipmentWithoutTesting> ShipmentWithoutTesting { get; set; }
     }
 }

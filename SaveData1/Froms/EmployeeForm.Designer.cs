@@ -42,6 +42,7 @@ namespace SaveData1
             this.tabPageActionsControl = new System.Windows.Forms.TabPage();
             this.btnQualityControlOpen = new System.Windows.Forms.Button();
             this.btnPostTestingShip = new System.Windows.Forms.Button();
+            this.btnShipWithoutTesting = new System.Windows.Forms.Button();
             this.btnBridgeTesting = new System.Windows.Forms.Button();
             this.btnCrossPlateTesting = new System.Windows.Forms.Button();
             this.btnAdvancedTesting = new System.Windows.Forms.Button();
@@ -446,6 +447,7 @@ namespace SaveData1
             // 
             // tabPageActionsControl
             // 
+            this.tabPageActionsControl.Controls.Add(this.btnShipWithoutTesting);
             this.tabPageActionsControl.Controls.Add(this.btnPostTestingShip);
             this.tabPageActionsControl.Controls.Add(this.btnQualityControlOpen);
             this.tabPageActionsControl.Location = new System.Drawing.Point(4, 26);
@@ -475,6 +477,17 @@ namespace SaveData1
             this.btnPostTestingShip.Text = "Отгрузить";
             this.btnPostTestingShip.UseVisualStyleBackColor = true;
             this.btnPostTestingShip.Click += new System.EventHandler(this.btnPostTestingShip_Click);
+            // 
+            // btnShipWithoutTesting
+            // 
+            this.btnShipWithoutTesting.Location = new System.Drawing.Point(338, 4);
+            this.btnShipWithoutTesting.Name = "btnShipWithoutTesting";
+            this.btnShipWithoutTesting.Size = new System.Drawing.Size(260, 28);
+            this.btnShipWithoutTesting.TabIndex = 2;
+            this.btnShipWithoutTesting.Text = "Отгрузить без тестирования (админ)";
+            this.btnShipWithoutTesting.UseVisualStyleBackColor = true;
+            this.btnShipWithoutTesting.Visible = false;
+            this.btnShipWithoutTesting.Click += new System.EventHandler(this.btnShipWithoutTesting_Click);
             // 
             // tabControlWork
             // 
@@ -1167,7 +1180,7 @@ namespace SaveData1
             this.tabAdminProductionStages.Padding = new System.Windows.Forms.Padding(5);
             this.tabAdminProductionStages.Size = new System.Drawing.Size(1084, 605);
             this.tabAdminProductionStages.TabIndex = 4;
-            this.tabAdminProductionStages.Text = "Сводка по этапам";
+            this.tabAdminProductionStages.Text = "Сводка по тестированию";
             this.tabAdminProductionStages.UseVisualStyleBackColor = true;
             // 
             // btnRefreshProductionStages
@@ -1323,6 +1336,7 @@ namespace SaveData1
         private System.Windows.Forms.TabPage tabPageActionsControl;
         private System.Windows.Forms.Button btnQualityControlOpen;
         private System.Windows.Forms.Button btnPostTestingShip;
+        private System.Windows.Forms.Button btnShipWithoutTesting;
         private System.Windows.Forms.Button btnSaveChanges;
         private System.Windows.Forms.Button btnChangeStatus;
         private System.Windows.Forms.Button btnExportExcel;

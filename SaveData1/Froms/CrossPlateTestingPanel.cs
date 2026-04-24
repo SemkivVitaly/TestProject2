@@ -12,6 +12,7 @@ using SaveData1.CrossPlateTesting.Models;
 using SaveData1.CrossPlateTesting.Services;
 using SaveData1.Entity;
 using SaveData1.Helpers;
+using SaveData1.Services;
 
 namespace SaveData1.Froms
 {
@@ -27,6 +28,10 @@ namespace SaveData1.Froms
         private string _saveActNumber = "";
         private Func<string> _getBaseStoragePath;
         private Action _onTestingProgressChanged;
+
+        // Доп. настройки, создаются в рантайме (чтобы не менять Designer).
+        private CheckBox _chkAdvancedNetwork;
+        private CheckBox _chkUseMavLinkV2;
 
         public CrossPlateTestingPanel()
         {
@@ -82,10 +87,15 @@ namespace SaveData1.Froms
             if (_saveActId <= 0) return new List<string>();
             using (var ctx = ConnectionHelper.CreateContext())
             {
-                return ctx.Product.AsNoTracking()
-                    .Where(p => p.ActID == _saveActId && p.ProducType != null && p.ProducType.TypeName == CrossPlateDbHelper.CrossProductTypeName)
-                    .Select(p => p.ProductSerial)
-                    .Where(s => !string.IsNullOrEmpty(s))
+                var rows = ctx.Product.AsNoTracking()
+                    .Where(p => p.ActID == _saveActId && p.ProducType != null && p.ProducType.TypeName == CrossPlateDbHelper.CrossProductTypeName
+                        && p.PostTestingWarehouseAt == null && !p.QualityControlPassed)
+                    .Select(p => new { p.ProductID, p.ProductSerial })
+                    .ToList();
+                var busyIds = ProductLifecycleService.GetProductIdsWhereLatestTestingIsInProgress(rows.Select(r => r.ProductID));
+                return rows
+                    .Where(r => !busyIds.Contains(r.ProductID) && !string.IsNullOrEmpty(r.ProductSerial))
+                    .Select(r => r.ProductSerial)
                     .Distinct()
                     .OrderBy(s => s)
                     .ToList();
@@ -110,7 +120,10 @@ namespace SaveData1.Froms
             if (string.IsNullOrEmpty(basePath)) return null;
             try
             {
-                return Path.Combine(basePath, $"Отгрузка_{CrossPlateDbHelper.CrossProductTypeName}_Акт_{_saveActNumber}");
+                // Если в SavePath уже лежит готовый путь вида …\Отгрузка_Кросс-плата_Акт_1,
+                // повторно не оборачиваем — иначе возникнет вложенная папка.
+                return ActFolderPathHelper.BuildActFolderPath(
+                    basePath, CrossPlateDbHelper.CrossProductTypeName, _saveActNumber);
             }
             catch { return null; }
         }
@@ -129,6 +142,7 @@ namespace SaveData1.Froms
             txtExcelOutputFolder.Visible = false;
             btnBrowseExcelFolder.Visible = false;
 
+            BuildAdvancedNetworkControls();
             LoadConfig();
             Form pf = FindForm();
             if (pf != null)
@@ -142,6 +156,59 @@ namespace SaveData1.Froms
             _runner.OnCompleted += Runner_OnCompleted;
             _runner.OnStopped += Runner_OnStopped;
             BuildDelaysTab();
+        }
+
+        /// <summary>
+        /// Добавляет чекбокс «Расширенные сетевые настройки». По умолчанию поля
+        /// порта/таймаута/адреса пинга/галки MAVLink v2 и «без проверки MAVLink» выключены
+        /// (редактировать нельзя), чтобы случайно не сбить рабочую конфигурацию.
+        /// </summary>
+        private void BuildAdvancedNetworkControls()
+        {
+            if (_chkAdvancedNetwork != null) return;
+
+            _chkAdvancedNetwork = new CheckBox
+            {
+                AutoSize = true,
+                Location = new Point(10, 12),
+                Text = "Расширенные сетевые настройки (разблокировать порт/таймаут)",
+                UseVisualStyleBackColor = true
+            };
+
+            _chkUseMavLinkV2 = new CheckBox
+            {
+                AutoSize = true,
+                Location = new Point(465, 152),
+                Text = "MAVLink v2 (отправка)",
+                UseVisualStyleBackColor = true
+            };
+
+            groupPaths.Controls.Add(_chkAdvancedNetwork);
+            groupPaths.Controls.Add(_chkUseMavLinkV2);
+
+            _chkAdvancedNetwork.CheckedChanged += (s, ev) =>
+            {
+                ApplyAdvancedNetworkState(_chkAdvancedNetwork.Checked);
+                _config.AdvancedNetworkEditable = _chkAdvancedNetwork.Checked;
+                SaveConfig();
+            };
+
+            _chkUseMavLinkV2.CheckedChanged += (s, ev) =>
+            {
+                _config.UseMavLinkV2 = _chkUseMavLinkV2.Checked;
+                MavLinkService.UseV2ForSending = _chkUseMavLinkV2.Checked;
+                SaveConfig();
+            };
+        }
+
+        /// <summary>Переключает доступность сетевых полей под «расширенные настройки».</summary>
+        private void ApplyAdvancedNetworkState(bool editable)
+        {
+            numDronePort.Enabled = editable;
+            numTimeout.Enabled = editable;
+            txtDronePing.Enabled = editable;
+            chkSkipConnectionCheck.Enabled = editable;
+            if (_chkUseMavLinkV2 != null) _chkUseMavLinkV2.Enabled = editable;
         }
 
         private void BuildDelaysTab()
@@ -266,6 +333,10 @@ namespace SaveData1.Froms
             DelaySettings.Apply(_config.Delays);
             MavLinkService.UseV2ForSending = _config.UseMavLinkV2;
 
+            if (_chkAdvancedNetwork != null) _chkAdvancedNetwork.Checked = _config.AdvancedNetworkEditable;
+            if (_chkUseMavLinkV2 != null) _chkUseMavLinkV2.Checked = _config.UseMavLinkV2;
+            ApplyAdvancedNetworkState(_config.AdvancedNetworkEditable);
+
             scrollStands.Controls.Clear();
             if (_config.Stands != null)
             {
@@ -337,6 +408,7 @@ namespace SaveData1.Froms
             if (string.IsNullOrEmpty(ser) || _saveUser == null) return;
             try
             {
+                int productId = 0;
                 using (var ctx = ConnectionHelper.CreateContext())
                 {
                     if (!CrossPlateDbHelper.TryGetCrossProduct(ctx, _saveActId, ser, out var prod))
@@ -351,8 +423,20 @@ namespace SaveData1.Froms
                         else showErr();
                         return;
                     }
-                    CrossPlateDbHelper.RecordSuccess(ctx, prod.ProductID, _saveUser.UserID, out _);
+                    productId = prod.ProductID;
+                    CrossPlateDbHelper.RecordSuccess(ctx, productId, _saveUser.UserID, out _);
                 }
+                // Помечаем TechnicalMapTesting как успешно завершённый — только так статус в
+                // EmployeeForm/QualityControlForm/PostTestingShipToWarehouseForm корректно обновится.
+                try
+                {
+                    ProductLifecycleService.RecordSuccessfulAutoTest(productId, _saveUser.UserID);
+                }
+                catch (Exception lcEx)
+                {
+                    Log($"[Статус] Не удалось отметить тест успешным: {lcEx.Message}");
+                }
+
                 string folder = GetCrossExportRoot();
                 if (string.IsNullOrEmpty(folder)) return;
                 Directory.CreateDirectory(folder);
@@ -419,6 +503,9 @@ namespace SaveData1.Froms
                     tflightId = CrossPlateDbHelper.CreateFailedTestSession(ctx, productId, _saveUser.UserID);
                     nonConformityErrorId = CrossPlateDbHelper.CreateNonConformityError(ctx, productId);
                 }
+                // Синхронно обновляем статус в TechnicalMapTesting (Fault=true), иначе продукт
+                // остаётся «В работе» в EmployeeForm.
+                ProductLifecycleService.RecordFailedAutoTest(productId, _saveUser.UserID);
             }
             catch (Exception ex)
             {
@@ -459,6 +546,20 @@ namespace SaveData1.Froms
                 error = "На вкладке «Полетники (USB)» укажите существующую корневую папку сохранения.";
                 return false;
             }
+
+            // Скрипт обязателен и для одиночного «Тест», и для группового «Старт» —
+            // без скрипта тестирование не имеет смысла и раньше вызывало зависание UI.
+            string scriptPath = (txtScriptPath?.Text ?? _config?.ScriptPath ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(scriptPath))
+            {
+                error = "Укажите «Скрипт для запуска» (.mavparams, .bat или .ps1) перед запуском теста.";
+                return false;
+            }
+            if (!File.Exists(scriptPath))
+            {
+                error = $"Файл скрипта не найден:\n{scriptPath}\n\nВыберите существующий файл скрипта.";
+                return false;
+            }
             if (stand != null)
             {
                 if (string.IsNullOrWhiteSpace(stand.ProductSerialNumber ?? stand.Name ?? ""))
@@ -477,7 +578,56 @@ namespace SaveData1.Froms
                 error = "Укажите серийный номер хотя бы для одного стенда.";
                 return false;
             }
+
+            // Нельзя тестировать продукт, который уже «в работе» у другого сотрудника.
+            if (stand != null)
+            {
+                if (!TryValidateCrossStandNotLockedByOther(stand, out string lockErr))
+                {
+                    error = lockErr;
+                    return false;
+                }
+            }
+            else if (_config.Stands != null)
+            {
+                foreach (var st in _config.Stands)
+                {
+                    if (!TryValidateCrossStandNotLockedByOther(st, out string lockErr2))
+                    {
+                        error = lockErr2;
+                        return false;
+                    }
+                }
+            }
+
             error = null;
+            return true;
+        }
+
+        /// <summary>
+        /// Блокирует запуск, если по С/Н найден продукт и последнее тестирование
+        /// удерживается другим пользователем (не текущим).
+        /// </summary>
+        private bool TryValidateCrossStandNotLockedByOther(Stand stand, out string error)
+        {
+            error = null;
+            if (_saveUser == null || stand == null || _saveActId <= 0) return true;
+            string ser = (stand.ProductSerialNumber ?? stand.Name ?? "").Trim();
+            if (string.IsNullOrEmpty(ser)) return true;
+
+            int productId;
+            using (var ctx = ConnectionHelper.CreateContext())
+            {
+                if (!CrossPlateDbHelper.TryGetCrossProduct(ctx, _saveActId, ser, out var prod))
+                    return true;
+                productId = prod.ProductID;
+            }
+
+            if (!ProductLifecycleService.TryValidateAutoTestAccess(productId, _saveUser.UserID, out string block))
+            {
+                error = $"Серийный номер «{ser}»: {block} Дождитесь завершения или обратитесь к администратору.";
+                return false;
+            }
             return true;
         }
 
@@ -490,23 +640,87 @@ namespace SaveData1.Froms
                 return;
             }
             panel.SetTestRunning(true);
-            bool success = await _runner.RunSingleStandAsync(_config, panel.Stand);
-            panel.SetTestRunning(false);
-            ApplyBoundFieldsToConfig();
+
+            // Сразу помечаем продукт «В работе» в БД, чтобы другой сотрудник не смог
+            // начать параллельное тестирование. Статус сохраняется даже если тест
+            // завершится неуспешно или вообще не начнётся.
+            TryMarkProductTestingInProgress(panel.Stand);
+
+            bool success = false;
+            try
+            {
+                success = await _runner.RunSingleStandAsync(_config, panel.Stand);
+            }
+            catch (Exception exRun)
+            {
+                Log($"[ОШИБКА теста стенда] {exRun.GetType().Name}: {exRun.Message}");
+                success = false;
+            }
+            finally
+            {
+                // Панель должна быть разблокирована в любом случае — иначе UI виснет.
+                try { panel.SetTestRunning(false); } catch { }
+                try { ApplyBoundFieldsToConfig(); } catch { }
+            }
+
+            // Скачивание логов Bridge: используем АСИНХРОННУЮ версию, чтобы не блокировать
+            // UI-поток через GetAwaiter().GetResult() (раньше это приводило к «зависанию»
+            // лога и кнопок на время HTTP-таймаутов — до 7 × timeoutMs).
             if (!string.IsNullOrWhiteSpace(_config.ExcelOutputFolder))
             {
-                BridgeUnifiedLogSaveService.TrySaveAfterStandTest(
-                    _config.ExcelOutputFolder,
-                    panel.Stand,
-                    _config.Esp32BridgeWebHost,
-                    _config.Esp32BridgeWebPort,
-                    _config.Esp32BridgeLogTimeoutMs,
-                    Log);
+                try
+                {
+                    await BridgeUnifiedLogSaveService.TrySaveAfterStandTestAsync(
+                        _config.ExcelOutputFolder,
+                        panel.Stand,
+                        _config.Esp32BridgeWebHost,
+                        _config.Esp32BridgeWebPort,
+                        _config.Esp32BridgeLogTimeoutMs,
+                        Log);
+                }
+                catch (Exception exLog)
+                {
+                    Log($"[Лог моста] Внутренняя ошибка архиватора: {exLog.GetType().Name}: {exLog.Message}");
+                }
             }
+
             if (success)
             {
                 TryRecordCrossSuccess(panel.Stand);
                 panel.OnTestSuccess();
+            }
+            else
+            {
+                // Тест завершился неуспешно — статус остаётся «В работе» (InProgress=true),
+                // чтобы продукт не разблокировался для других сотрудников. Сбросить
+                // резервирование может только админ или тот же пользователь через
+                // штатный поток «Неисправность» / ремонта.
+            }
+        }
+
+        /// <summary>
+        /// При старте теста конкретного стенда помечает продукт «в работе» в БД,
+        /// чтобы на форме сотрудника его нельзя было взять повторно.
+        /// </summary>
+        private void TryMarkProductTestingInProgress(Stand stand)
+        {
+            if (_saveUser == null || stand == null) return;
+            string ser = (stand.ProductSerialNumber ?? stand.Name ?? "").Trim();
+            if (string.IsNullOrEmpty(ser) || _saveActId <= 0) return;
+            try
+            {
+                int productId;
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    if (!CrossPlateDbHelper.TryGetCrossProduct(ctx, _saveActId, ser, out var prod))
+                        return;
+                    productId = prod.ProductID;
+                }
+                ProductLifecycleService.MarkTestingInProgress(productId, _saveUser.UserID);
+            }
+            catch (Exception ex)
+            {
+                Log($"[Статус] Не удалось отметить продукт «в работе»: {ex.Message}");
             }
         }
 
@@ -556,11 +770,21 @@ namespace SaveData1.Froms
             btnStop.Enabled = true;
             SetAllTestButtonsEnabled(false);
 
+            // До старта всей серии помечаем каждый стенд с непустым серийником «в работе»,
+            // чтобы другие сотрудники не смогли взять продукт на тестирование параллельно.
+            if (_config.Stands != null)
+            {
+                foreach (var st in _config.Stands)
+                    TryMarkProductTestingInProgress(st);
+            }
+
             Action<Stand, bool> onTestComplete = null;
             if (!string.IsNullOrWhiteSpace(_config.ExcelOutputFolder))
             {
                 try
                 {
+                    // Страхуемся: корневая папка акта должна существовать ДО открытия Excel.
+                    try { Directory.CreateDirectory(_config.ExcelOutputFolder); } catch { }
                     _excelReport.EnsureWorkbook(_config.ExcelOutputFolder, _config.ActNumber ?? "", _config.TesterFio ?? "");
                     onTestComplete = OnTestComplete;
                 }
@@ -592,18 +816,26 @@ namespace SaveData1.Froms
             }
         }
 
-        private void OnTestComplete(Stand stand, bool success)
+        private async void OnTestComplete(Stand stand, bool success)
         {
             ApplyBoundFieldsToConfig();
             if (!string.IsNullOrWhiteSpace(_config.ExcelOutputFolder))
             {
-                BridgeUnifiedLogSaveService.TrySaveAfterStandTest(
-                    _config.ExcelOutputFolder,
-                    stand,
-                    _config.Esp32BridgeWebHost,
-                    _config.Esp32BridgeWebPort,
-                    _config.Esp32BridgeLogTimeoutMs,
-                    Log);
+                // Асинхронно — чтобы длинные HTTP-таймауты до ESP32-моста не блокировали UI-поток.
+                try
+                {
+                    await BridgeUnifiedLogSaveService.TrySaveAfterStandTestAsync(
+                        _config.ExcelOutputFolder,
+                        stand,
+                        _config.Esp32BridgeWebHost,
+                        _config.Esp32BridgeWebPort,
+                        _config.Esp32BridgeLogTimeoutMs,
+                        Log);
+                }
+                catch (Exception exLog)
+                {
+                    Log($"[Лог моста] Внутренняя ошибка архиватора: {exLog.GetType().Name}: {exLog.Message}");
+                }
             }
             if (!success) return;
             var panel = FindPanelByStand(stand);

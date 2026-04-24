@@ -49,12 +49,16 @@ namespace SaveData1.Services
             }, nameof(GetAllActs));
         }
 
-        /// <summary>Готовые акты с фильтрацией по категории (TypeName) / категории+стране.</summary>
+        /// <summary>Готовые акты с фильтрацией по категории (TypeName) / категории+стране.
+        /// Отфильтровывает акты, у которых ВСЕ продукты уже отгружены на склад «после теста»
+        /// (<c>PostTestingWarehouseAt != null</c>) — такие акты больше не должны показываться
+        /// сотруднику, потому что работать с ними уже нельзя.
+        /// Акты с журналом <c>ShipmentWithoutTesting</c> скрываются полностью (в т.ч. при оставшихся изолированных без даты склада).</summary>
         public static List<ActListItem> GetReadyActsFiltered(string filterTypeName, int? filterTypeID, int? filterCountryID)
         {
             return DbOperation.Run(ctx =>
             {
-                var query = ctx.Act.AsNoTracking().Where(a => a.IsReady);
+                var query = ctx.Act.AsNoTracking().Where(a => a.IsReady && !a.ShipmentWithoutTesting.Any());
                 if (!string.IsNullOrEmpty(filterTypeName))
                 {
                     query = query.Where(a => a.Product.Any(p => p.ProducType != null && p.ProducType.TypeName == filterTypeName));
@@ -72,12 +76,16 @@ namespace SaveData1.Services
                         query = query.Where(a => a.Product.Any(p => p.TypeID == typeId));
                     }
                 }
+
+                // Скрываем акты, у которых все продукты уже отправлены на склад после теста.
+                query = query.Where(a => a.Product.Any() && a.Product.Any(p => p.PostTestingWarehouseAt == null));
+
                 return query.Select(a => new ActListItem
                 {
                     ActID = a.ActID,
                     ActNumber = a.ActNumber,
                     IsReady = a.IsReady,
-                    ProductCount = a.Product.Count
+                    ProductCount = a.Product.Count(p => p.PostTestingWarehouseAt == null)
                 }).OrderBy(a => a.ActNumber).ToList();
             }, nameof(GetReadyActsFiltered));
         }

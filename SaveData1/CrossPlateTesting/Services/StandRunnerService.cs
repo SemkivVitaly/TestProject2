@@ -152,12 +152,16 @@ namespace SaveData1.CrossPlateTesting.Services
             if (IsRunning)
             {
                 _log("Уже выполняется. Дождитесь завершения.");
+                // OnCompleted НЕ вызываем — предыдущий запуск сам его вызовет.
                 return;
             }
 
             if (config.Stands == null || config.Stands.Count == 0)
             {
                 _log("Нет стендов для обработки. Добавьте стенды и сохраните данные.");
+                // Обязательно возвращаем UI в исходное состояние, чтобы кнопки «Старт/Стоп»
+                // не оставались заблокированными (форма «зависает»).
+                OnCompleted?.Invoke();
                 return;
             }
 
@@ -167,6 +171,9 @@ namespace SaveData1.CrossPlateTesting.Services
             if (!hasScript)
             {
                 _log("Укажите путь к скрипту (.mavparams, .bat, .ps1).");
+                // Без скрипта запускать нечего — разблокируем UI, иначе пользователь
+                // не сможет нажать «Старт» повторно после указания скрипта.
+                OnCompleted?.Invoke();
                 return;
             }
 
@@ -309,65 +316,133 @@ namespace SaveData1.CrossPlateTesting.Services
             {
                 _log($"[Wi-Fi] Подключение к сети '{stand.WifiSsid}'...");
 
-                string profileXml = CreateWifiProfileXml(stand.WifiSsid, stand.WifiPassword);
-                string tempPath = Path.Combine(Path.GetTempPath(), $"wifi_{stand.Id}.xml");
-                File.WriteAllText(tempPath, profileXml);
-
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "netsh",
-                    Arguments = $"wlan add profile filename=\"{tempPath}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    Verb = "runas"
-                };
-
-                try
-                {
-                    using (var addProfile = Process.Start(startInfo))
-                    {
-                        addProfile?.WaitForExit(10000);
-                    }
-                }
-                catch
-                {
-                    startInfo.Verb = null;
-                    using (var addProfile = Process.Start(startInfo))
-                    {
-                        addProfile?.WaitForExit(10000);
-                    }
-                }
-
-                if (File.Exists(tempPath))
-                    try { File.Delete(tempPath); } catch { }
-
-                startInfo.Arguments = $"wlan connect name=\"{stand.WifiSsid}\"";
-                startInfo.Verb = null;
-
-                using (var connect = Process.Start(startInfo))
-                {
-                    connect?.WaitForExit(15000);
-                }
-
-                await Task.Delay(DelaySettings.Stand_WifiAfterConnect, _cts.Token);
-
+                // 1) Если уже подключены к той же сети — ничего не делаем.
                 if (IsConnectedToWifi(stand.WifiSsid))
                 {
-                    _log($"[Wi-Fi] Успешно подключено к '{stand.WifiSsid}'.");
+                    _log($"[Wi-Fi] Уже подключены к '{stand.WifiSsid}'. Шаг подключения пропущен.");
                     return true;
                 }
 
-                _log($"[Wi-Fi] Подключение к '{stand.WifiSsid}' - проверка статуса...");
-                await Task.Delay(DelaySettings.Stand_WifiRetryCheck, _cts.Token);
-                return IsConnectedToWifi(stand.WifiSsid);
+                // 2) Добавляем WLAN-профиль (идемпотентно).
+                string profileXml = CreateWifiProfileXml(stand.WifiSsid, stand.WifiPassword);
+                string tempPath = Path.Combine(Path.GetTempPath(), $"wifi_{stand.Id}.xml");
+                try { File.WriteAllText(tempPath, profileXml); }
+                catch (Exception ex)
+                {
+                    _log($"[Wi-Fi] Не удалось записать временный профиль ({tempPath}): {ex.Message}");
+                    return false;
+                }
+
+                (int addCode, string addOut, string addErr) =
+                    await RunNetshAsync($"wlan add profile filename=\"{tempPath}\" user=all", 10000).ConfigureAwait(false);
+                if (File.Exists(tempPath))
+                    try { File.Delete(tempPath); } catch { }
+                if (addCode != 0 && !string.IsNullOrWhiteSpace(addErr))
+                    _log($"[Wi-Fi] 'add profile' код={addCode}: {addErr.Trim()}");
+
+                // 3) Форсированно просим повторное сканирование — иначе netsh может не видеть свежую точку.
+                try { await RunNetshAsync("wlan show networks mode=bssid", 5000).ConfigureAwait(false); } catch { }
+
+                // 4) Основной цикл подключения с ретраями — адаптер может «зависать» на первой попытке.
+                int connectAttempts = 3;
+                for (int attempt = 1; attempt <= connectAttempts; attempt++)
+                {
+                    if (_cts?.Token.IsCancellationRequested == true) return false;
+
+                    (int code, string outp, string err) =
+                        await RunNetshAsync($"wlan connect name=\"{stand.WifiSsid}\"", 15000).ConfigureAwait(false);
+                    string combined = ((outp ?? "") + " " + (err ?? "")).Trim();
+                    if (!string.IsNullOrEmpty(combined))
+                        _log($"[Wi-Fi] netsh: {combined}");
+
+                    // Дожидаемся ассоциации.
+                    int totalWaitMs = Math.Max(2000, DelaySettings.Stand_WifiAfterConnect)
+                                    + Math.Max(2000, DelaySettings.Stand_WifiRetryCheck);
+                    int stepMs = 500;
+                    int waited = 0;
+                    while (waited < totalWaitMs)
+                    {
+                        if (_cts?.Token.IsCancellationRequested == true) return false;
+                        try { await Task.Delay(stepMs, _cts?.Token ?? CancellationToken.None).ConfigureAwait(false); }
+                        catch (OperationCanceledException) { return false; }
+                        waited += stepMs;
+
+                        if (IsConnectedToWifi(stand.WifiSsid))
+                        {
+                            _log($"[Wi-Fi] Успешно подключено к '{stand.WifiSsid}' (попытка {attempt}).");
+                            return true;
+                        }
+                    }
+
+                    _log($"[Wi-Fi] Попытка {attempt}/{connectAttempts} не удалась. Текущий SSID: '{WifiInfoService.GetCurrentSsid() ?? "—"}'.");
+
+                    // Перед новой попыткой — короткая пауза и (на 2-й попытке) отключение/перезапуск адаптера.
+                    if (attempt < connectAttempts)
+                    {
+                        try { await Task.Delay(1500, _cts?.Token ?? CancellationToken.None).ConfigureAwait(false); }
+                        catch (OperationCanceledException) { return false; }
+
+                        if (attempt == connectAttempts - 1)
+                        {
+                            // Мягкий «сброс»: disconnect, подождать, потом попытка снова.
+                            try { await RunNetshAsync("wlan disconnect", 5000).ConfigureAwait(false); } catch { }
+                            try { await Task.Delay(1000, _cts?.Token ?? CancellationToken.None).ConfigureAwait(false); }
+                            catch (OperationCanceledException) { return false; }
+                        }
+                    }
+                }
+
+                // 5) Не подключились — даём пользователю осмысленный совет.
+                var availableNetworks = WifiInfoService.GetAvailableNetworks();
+                bool seeNetwork = availableNetworks != null &&
+                    availableNetworks.Any(s => string.Equals(s, stand.WifiSsid, StringComparison.OrdinalIgnoreCase));
+                if (!seeNetwork)
+                {
+                    _log($"[Wi-Fi] Сеть '{stand.WifiSsid}' не видна адаптером. Проверьте: стенд включён, антенна близко, Wi‑Fi адаптер не отключён.");
+                }
+                else
+                {
+                    _log($"[Wi-Fi] Сеть '{stand.WifiSsid}' видна, но подключиться не удалось. Возможно неверный пароль или конфликт профиля — пересохраните Wi‑Fi-данные стенда.");
+                }
+                return false;
             }
             catch (Exception ex)
             {
-                _log($"[Wi-Fi] Ошибка: {ex.Message}");
+                _log($"[Wi-Fi] Ошибка: {ex.GetType().Name}: {ex.Message}");
                 return false;
             }
+        }
+
+        /// <summary>Запуск netsh с захватом stdout/stderr и кода возврата.</summary>
+        private static Task<(int exitCode, string output, string error)> RunNetshAsync(string arguments, int timeoutMs)
+        {
+            return Task.Run(() =>
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "netsh",
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                try
+                {
+                    using (var p = Process.Start(psi))
+                    {
+                        string o = p?.StandardOutput.ReadToEnd() ?? "";
+                        string e = p?.StandardError.ReadToEnd() ?? "";
+                        p?.WaitForExit(Math.Max(1000, timeoutMs));
+                        int code = p != null && p.HasExited ? p.ExitCode : -1;
+                        return (code, o, e);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return (-1, "", ex.Message);
+                }
+            });
         }
 
         private bool IsConnectedToWifi(string ssid)
@@ -539,29 +614,36 @@ namespace SaveData1.CrossPlateTesting.Services
 
         private bool IsUdpPortReachable(string host, int port, int timeoutMs)
         {
+            // Синхронная версия без BeginReceive — чтобы избежать
+            // ObjectDisposedException при Dispose(UdpClient) с незавершённой асинхронной операцией.
+            UdpClient client = null;
             try
             {
-                using (var client = new UdpClient())
+                client = new UdpClient();
+                client.Client.ReceiveTimeout = timeoutMs;
+                client.Connect(host, port);
+                byte[] probe = new byte[] { 0 };
+                client.Send(probe, probe.Length);
+                var remoteEp = new IPEndPoint(IPAddress.Any, 0);
+                try
                 {
-                    client.Client.ReceiveTimeout = timeoutMs;
-                    client.Connect(host, port);
-                    byte[] probe = new byte[] { 0 };
-                    client.Send(probe, probe.Length);
-                    var remoteEp = new IPEndPoint(IPAddress.Any, 0);
-                    var result = client.BeginReceive(null, null);
-                    if (result.AsyncWaitHandle.WaitOne(timeoutMs))
-                    {
-                        try
-                        {
-                            byte[] data = client.EndReceive(result, ref remoteEp);
-                            return data != null && data.Length > 0;
-                        }
-                        catch { }
-                    }
+                    byte[] data = client.Receive(ref remoteEp);
+                    return data != null && data.Length > 0;
+                }
+                catch (SocketException)
+                {
+                    // Тайм-аут ожидания — нормально.
+                    return false;
                 }
             }
-            catch { }
-            return false;
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                try { client?.Close(); } catch { }
+            }
         }
 
         private bool PingHost(string host, int timeoutMs)
@@ -611,6 +693,8 @@ namespace SaveData1.CrossPlateTesting.Services
             if (config.Stands == null || config.Stands.Count == 0)
             {
                 _log("Нет стендов для обработки. Добавьте стенды и сохраните данные.");
+                // Разблокируем UI: без стендов запускать нечего.
+                OnCompleted?.Invoke();
                 return;
             }
 
@@ -620,6 +704,8 @@ namespace SaveData1.CrossPlateTesting.Services
             if (!hasScript)
             {
                 _log("Укажите путь к скрипту (.mavparams, .bat, .ps1).");
+                // Без скрипта мониторинг тоже запускать нечего — разблокируем UI.
+                OnCompleted?.Invoke();
                 return;
             }
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Entity;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -120,8 +121,43 @@ namespace SaveData1
                 tabControlActions.TabPages.Remove(tabPageActionsAdmin);
             if (!_hasTesting)
                 tabControlActions.TabPages.Remove(tabPageActionsTester);
-            if (!_hasControl)
+            if (!_hasControl && !_isAdmin)
                 tabControlActions.TabPages.Remove(tabPageActionsControl);
+
+            if (btnShipWithoutTesting != null)
+                btnShipWithoutTesting.Visible = _isAdmin;
+            // Только админу видны кнопки «Контроль»/«Отгрузить» и «Отгрузить без тестирования»
+            // могут отсутствовать, если у него нет обычного права «Контроль». Убедимся, что
+            // btnPostTestingShip/btnQualityControlOpen скрыты у админа без «Контроля», чтобы
+            // не путать: основная кнопка всё равно им не нужна.
+            if (_isAdmin && !_hasControl)
+            {
+                if (btnQualityControlOpen != null) btnQualityControlOpen.Visible = false;
+                if (btnPostTestingShip != null) btnPostTestingShip.Visible = false;
+            }
+
+            // Роль Storage: доступ к форме склада без выхода из приложения (двойная роль).
+            var flagsStorage = UserPermissionsService.GetFlags(user);
+            if (flagsStorage.IsStorage && panelTop != null && btnLogout != null)
+            {
+                var btnWarehouse = new Button
+                {
+                    Text = "Склад",
+                    Size = new Size(100, 28),
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    Font = new Font("Segoe UI", 9F),
+                    UseVisualStyleBackColor = true,
+                    TabIndex = btnLogout.TabIndex
+                };
+                btnWarehouse.Location = new Point(btnLogout.Left - btnWarehouse.Width - 8, btnLogout.Top);
+                btnWarehouse.Click += (_, __) =>
+                {
+                    using (var wh = new WarehouseForm(_currentUser))
+                        wh.ShowDialog(this);
+                };
+                panelTop.Controls.Add(btnWarehouse);
+                btnWarehouse.BringToFront();
+            }
 
             InitTestingScanAndAdminContextMenu();
             InitLstActsAdminContextMenu();
@@ -203,6 +239,7 @@ namespace SaveData1
                 LoadAdminActs();
                 LoadAdminUnassignedProducts();
                 LoadDefectStatistics();
+                BuildProductionStageFilterControls();
                 LoadProductionStageStatistics();
                 AttachProductGridContextMenu(dgvNoActProducts, () => { LoadNoActProducts(); LoadAdminUnassignedProducts(); });
                 AttachProductGridContextMenu(dgvAdminUnassigned, () => { LoadAdminUnassignedProducts(); LoadNoActProducts(); });
@@ -771,7 +808,12 @@ namespace SaveData1
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
-                if (!string.Equals((data.Category ?? "").Trim(), requiredCategoryName, StringComparison.OrdinalIgnoreCase))
+                string catTrim = (data.Category ?? "").Trim();
+                bool categoryOk = crossOnlyMode
+                    ? string.Equals(catTrim, requiredCategoryName, StringComparison.OrdinalIgnoreCase)
+                    : ProductLifecycleValidation.PolletnikProducTypeNames.Any(n =>
+                        string.Equals(catTrim, n, StringComparison.OrdinalIgnoreCase));
+                if (!categoryOk)
                 {
                     MessageBox.Show($"Скан: для этого режима нужен продукт категории «{requiredCategoryName}».", modeTitle,
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -781,6 +823,12 @@ namespace SaveData1
                 {
                     MessageBox.Show("У продукта нет акта.", modeTitle,
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                if (!ProductLifecycleService.TryValidateAutoTestAccess(data.ProductID, _currentUser.UserID, out string scanBlock))
+                {
+                    MessageBox.Show(scanBlock + "\n\nОткрыть форму можно после освобождения продукта (завершение теста или действие администратора).",
+                        modeTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
                 if (!TrySelectActListItemByActNumber(data.Act))
@@ -802,16 +850,19 @@ namespace SaveData1
             {
                 using (var ctx = ConnectionHelper.CreateContext())
                 {
+                    var polNames = ProductLifecycleValidation.PolletnikProducTypeNames;
                     var hit = ctx.Product.AsNoTracking()
-                        .Where(p => p.Act != null && p.ProducType != null && p.ProducType.TypeName == requiredCategoryName && p.ProductSerial == serial)
-                        .Select(p => new { p.ProductID, ActNumber = p.Act.ActNumber, p.PostTestingWarehouseAt })
+                        .Where(p => p.Act != null && p.ProducType != null && p.ProductSerial == serial
+                            && (crossOnlyMode ? p.ProducType.TypeName == requiredCategoryName : polNames.Contains(p.ProducType.TypeName)))
+                        .Select(p => new { p.ProductID, ActNumber = p.Act.ActNumber, p.PostTestingWarehouseAt, p.QualityControlPassed })
                         .FirstOrDefault();
                     if (hit == null)
                     {
                         string sLower = serial.ToLowerInvariant();
                         hit = ctx.Product.AsNoTracking()
-                            .Where(p => p.Act != null && p.ProducType != null && p.ProducType.TypeName == requiredCategoryName && p.ProductSerial.ToLower() == sLower)
-                            .Select(p => new { p.ProductID, ActNumber = p.Act.ActNumber, p.PostTestingWarehouseAt })
+                            .Where(p => p.Act != null && p.ProducType != null && p.ProductSerial.ToLower() == sLower
+                                && (crossOnlyMode ? p.ProducType.TypeName == requiredCategoryName : polNames.Contains(p.ProducType.TypeName)))
+                            .Select(p => new { p.ProductID, ActNumber = p.Act.ActNumber, p.PostTestingWarehouseAt, p.QualityControlPassed })
                             .FirstOrDefault();
                     }
                     if (hit == null)
@@ -820,10 +871,16 @@ namespace SaveData1
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
-                    if (hit.PostTestingWarehouseAt != null)
+                    if (hit.PostTestingWarehouseAt != null || hit.QualityControlPassed)
                     {
-                        MessageBox.Show("Продукт уже передан на склад после теста.", modeTitle,
+                        MessageBox.Show("Продукт уже прошёл контроль или отгрузку на склад после теста — авто-тест недоступен.", modeTitle,
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    if (!ProductLifecycleService.TryValidateAutoTestAccess(hit.ProductID, _currentUser.UserID, out string scanBlock2))
+                    {
+                        MessageBox.Show(scanBlock2 + "\n\nОткрыть форму можно после освобождения продукта (завершение теста или действие администратора).",
+                            modeTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
                     if (!TrySelectActListItemByActNumber(hit.ActNumber))
@@ -891,8 +948,10 @@ namespace SaveData1
                             p.ProductID,
                             p.ProductSerial,
                             p.PostTestingWarehouseAt,
+                            p.QualityControlPassed,
                             ActNumber = p.Act.ActNumber,
-                            ActIsReady = p.Act.IsReady
+                            ActIsReady = p.Act.IsReady,
+                            TypeName = p.ProducType != null ? p.ProducType.TypeName : ""
                         })
                         .FirstOrDefault();
                     if (hit == null)
@@ -905,8 +964,10 @@ namespace SaveData1
                                 p.ProductID,
                                 p.ProductSerial,
                                 p.PostTestingWarehouseAt,
+                                p.QualityControlPassed,
                                 ActNumber = p.Act.ActNumber,
-                                ActIsReady = p.Act.IsReady
+                                ActIsReady = p.Act.IsReady,
+                                TypeName = p.ProducType != null ? p.ProducType.TypeName : ""
                             })
                             .FirstOrDefault();
                     }
@@ -922,18 +983,19 @@ namespace SaveData1
                             "Скан", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
-                    if (hit.PostTestingWarehouseAt != null)
+                    if (hit.PostTestingWarehouseAt != null || hit.QualityControlPassed)
                     {
-                        MessageBox.Show("Продукт уже передан на склад после теста — открыть тестирование нельзя.",
+                        MessageBox.Show("Продукт уже прошёл контроль или отгрузку на склад после теста — тестирование недоступно.",
                             "Скан", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
+                    bool skipAsm = ProductLifecycleValidation.ProductTypeHasNoAssemblyWorkflow(hit.TypeName);
                     bool readyForTest = ctx.TechnicalMapFull.AsNoTracking()
                         .Any(f => f.ProductID == hit.ProductID && !f.Inspection
-                            && f.TechnicalMapAssembly.Any(a => a.IsReady));
+                            && (f.TechnicalMapAssembly.Any(a => a.IsReady) || skipAsm));
                     if (!readyForTest)
                     {
-                        MessageBox.Show("Продукт не готов к тестированию (нет завершённой сборки по техкарте или техкарта на инспекции).",
+                        MessageBox.Show("Продукт не готов к тестированию (нет завершённой сборки по техкарте, нет техкарты вне инспекции или техкарта на инспекции).",
                             "Скан", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
@@ -976,14 +1038,14 @@ namespace SaveData1
                 {
                     var hit = ctx.Product.AsNoTracking()
                         .Where(p => p.Act != null && p.ProductSerial == serial)
-                        .Select(p => new { p.ProductID, p.ProductSerial, ActIsReady = p.Act.IsReady })
+                        .Select(p => new { p.ProductID, p.ProductSerial, ActIsReady = p.Act.IsReady, p.PostTestingWarehouseAt, p.QualityControlPassed })
                         .FirstOrDefault();
                     if (hit == null)
                     {
                         string sLower = serial.ToLowerInvariant();
                         hit = ctx.Product.AsNoTracking()
                             .Where(p => p.Act != null && p.ProductSerial.ToLower() == sLower)
-                            .Select(p => new { p.ProductID, p.ProductSerial, ActIsReady = p.Act.IsReady })
+                            .Select(p => new { p.ProductID, p.ProductSerial, ActIsReady = p.Act.IsReady, p.PostTestingWarehouseAt, p.QualityControlPassed })
                             .FirstOrDefault();
                     }
                     if (hit == null)
@@ -995,6 +1057,12 @@ namespace SaveData1
                     if (!hit.ActIsReady)
                     {
                         MessageBox.Show("Акт этого продукта ещё не отмечен как отгруженный — сборка по списку недоступна.",
+                            "Скан", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    if (hit.PostTestingWarehouseAt != null || hit.QualityControlPassed)
+                    {
+                        MessageBox.Show("Продукт уже прошёл контроль или отгрузку на склад после теста — сборка недоступна.",
                             "Скан", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
@@ -1633,6 +1701,40 @@ namespace SaveData1
             return ActProductTestingKind.Standard;
         }
 
+        /// <summary>
+        /// Наличие продуктов каждой тестируемой категории в выбранном акте.
+        /// Используется для динамического показа/скрытия кнопок тестирования.
+        /// </summary>
+        private (bool hasCross, bool hasPol, bool hasBridge) GetActTestingCategoriesPresence()
+        {
+            string selectedActText = lstActs.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(selectedActText) || selectedActText == "(Все акты)" || selectedActText == "Акты не найдены")
+                return (false, false, false);
+            string actNumber = ExtractActNumber(selectedActText);
+            if (string.IsNullOrEmpty(actNumber))
+                return (false, false, false);
+            try
+            {
+                string bridgeTypeName = BridgeDbHelper.GetBridgeProductTypeName();
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var act = ctx.Act.AsNoTracking()
+                        .Include(a => a.Product)
+                        .Include("Product.ProducType")
+                        .FirstOrDefault(a => a.ActNumber == actNumber);
+                    if (act?.Product == null || act.Product.Count == 0) return (false, false, false);
+                    bool hasCross = act.Product.Any(p => p.ProducType != null && p.ProducType.TypeName == CrossPlateDbHelper.CrossProductTypeName);
+                    bool hasPol = act.Product.Any(p => p.ProducType != null && p.ProducType.TypeName == PolletnikiTypeName);
+                    bool hasBridge = act.Product.Any(p => p.ProducType != null && p.ProducType.TypeName == bridgeTypeName);
+                    return (hasCross, hasPol, hasBridge);
+                }
+            }
+            catch
+            {
+                return (false, false, false);
+            }
+        }
+
         /// <summary>Перестраивает вкладки режима работы: для актов только с полётниками или только с кросс-платами — отдельная вкладка авто-теста вместо «Сборка»/«Тестирование».</summary>
         private void RebuildWorkTabsForSelectedAct()
         {
@@ -1697,10 +1799,15 @@ namespace SaveData1
                 return;
             if (tabControlActions == null || !tabControlActions.TabPages.Contains(tabPageActionsTester))
                 return;
-            ActProductTestingKind kind = GetActProductTestingKind();
-            btnCrossPlateTesting.Visible = kind != ActProductTestingKind.Polletniki;
-            btnAdvancedTesting.Visible = kind != ActProductTestingKind.CrossPlata;
-            btnBridgeTesting.Visible = true;
+
+            // Показываем кнопку тестирования только для тех категорий, что реально есть в акте.
+            // Если акт пустой или не выбран — показываем все три, чтобы не ломать обычный сценарий.
+            var presence = GetActTestingCategoriesPresence();
+            bool anyDetected = presence.hasCross || presence.hasPol || presence.hasBridge;
+
+            btnCrossPlateTesting.Visible = !anyDetected || presence.hasCross;
+            btnAdvancedTesting.Visible = !anyDetected || presence.hasPol;
+            btnBridgeTesting.Visible = !anyDetected || presence.hasBridge;
         }
 
         /// <summary>Перезагрузка профиля и вкладок после смены роли/разрешений у текущего пользователя (без перелогина).</summary>
@@ -1788,8 +1895,15 @@ namespace SaveData1
                 tabControlActions.TabPages.Insert(insert++, tabPageActionsAdmin);
             if (_hasTesting)
                 tabControlActions.TabPages.Insert(insert++, tabPageActionsTester);
-            if (_hasControl)
+            if (_hasControl || _isAdmin)
                 tabControlActions.TabPages.Insert(insert, tabPageActionsControl);
+
+            if (btnShipWithoutTesting != null)
+                btnShipWithoutTesting.Visible = _isAdmin;
+            if (btnQualityControlOpen != null)
+                btnQualityControlOpen.Visible = _hasControl;
+            if (btnPostTestingShip != null)
+                btnPostTestingShip.Visible = _hasControl;
         }
 
         private void RebuildBaselineWorkModesFromPermissionFlags()
@@ -1822,16 +1936,18 @@ namespace SaveData1
 
                     if (_currentWorkMode == WorkMode.PolletnikAutoTesting || _currentWorkMode == WorkMode.CrossPlataAutoTesting)
                     {
-                        string typeName = _currentWorkMode == WorkMode.PolletnikAutoTesting
-                            ? PolletnikiTypeName
-                            : CrossPlateDbHelper.CrossProductTypeName;
+                        string crossName = CrossPlateDbHelper.CrossProductTypeName;
+                        var polletnikNames = ProductLifecycleValidation.PolletnikProducTypeNames;
                         var productsQuery = context.Product
                             .AsNoTracking()
                             .Include(p => p.ProducType)
                             .Include(p => p.ProducType.Country)
                             .Include(p => p.Act)
-                            .Where(p => p.Act != null && p.ProducType != null && p.ProducType.TypeName == typeName
-                                && p.PostTestingWarehouseAt == null);
+                            .Where(p => p.Act != null && p.ProducType != null
+                                && p.PostTestingWarehouseAt == null && !p.QualityControlPassed
+                                && (_currentWorkMode == WorkMode.PolletnikAutoTesting
+                                    ? polletnikNames.Contains(p.ProducType.TypeName)
+                                    : p.ProducType.TypeName == crossName));
                         if (!allActs)
                             productsQuery = productsQuery.Where(p => p.Act.ActNumber == actNumber);
 
@@ -1879,6 +1995,8 @@ namespace SaveData1
                     }
                     else if (_currentWorkMode == WorkMode.Testing)
                     {
+                        string bridgeProductType = BridgeDbHelper.GetBridgeProductTypeName();
+                        var polletnikNames = ProductLifecycleValidation.PolletnikProducTypeNames;
                         var queryTester = context.TechnicalMapFull
                             .AsNoTracking()
                             .Include(f => f.Product)
@@ -1888,8 +2006,12 @@ namespace SaveData1
                             .Include("TechnicalMapAssembly")
                             .Include("TechnicalMapTesting.UsersProfile")
                             .Include("TechnicalMapTesting.Description")
-                            .Where(f => f.Product.Act != null && f.TechnicalMapAssembly.Any(a => a.IsReady)
-                                && f.Product.PostTestingWarehouseAt == null);
+                            .Where(f => f.Product.Act != null && f.Product.PostTestingWarehouseAt == null && !f.Product.QualityControlPassed
+                                && (f.TechnicalMapAssembly.Any(a => a.IsReady)
+                                    || (f.Product.ProducType != null
+                                        && (polletnikNames.Contains(f.Product.ProducType.TypeName)
+                                            || f.Product.ProducType.TypeName == CrossPlateDbHelper.CrossProductTypeName
+                                            || f.Product.ProducType.TypeName == bridgeProductType))));
                         if (!allActs)
                             queryTester = queryTester.Where(f => f.Product.Act.ActNumber == actNumber);
 
@@ -1927,6 +2049,8 @@ namespace SaveData1
                             .Include(tm => tm.TechnicalMapFull.Product.ProducType.Country)
                             .Include(tm => tm.TechnicalMapFull.Product.Act)
                             .Include(tm => tm.UsersProfile)
+                            .Where(tm => tm.TechnicalMapFull.Product.PostTestingWarehouseAt == null
+                                && !tm.TechnicalMapFull.Product.QualityControlPassed)
                             .AsQueryable();
 
                         if (!allActs)
@@ -1959,7 +2083,7 @@ namespace SaveData1
                             .Include(p => p.ProducType)
                             .Include(p => p.ProducType.Country)
                             .Include(p => p.Act)
-                            .Where(p => p.Act != null);
+                            .Where(p => p.Act != null && p.PostTestingWarehouseAt == null && !p.QualityControlPassed);
                         if (!allActs)
                             productsWithActQuery = productsWithActQuery.Where(p => p.Act.ActNumber == actNumber);
 
@@ -2055,6 +2179,21 @@ namespace SaveData1
                     if (_currentWorkMode == WorkMode.Assembly || _currentWorkMode == WorkMode.Testing
                         || _currentWorkMode == WorkMode.PolletnikAutoTesting || _currentWorkMode == WorkMode.CrossPlataAutoTesting)
                     {
+                        var workshopIds = _allProductData.Select(d => d.ProductID).Where(id => id > 0).Distinct().ToList();
+                        if (workshopIds.Count > 0)
+                        {
+                            var closedIds = context.Product.AsNoTracking()
+                                .Where(p => workshopIds.Contains(p.ProductID))
+                                .Where(p => p.PostTestingWarehouseAt != null || p.QualityControlPassed)
+                                .Select(p => p.ProductID)
+                                .ToList();
+                            if (closedIds.Count > 0)
+                            {
+                                var closedSet = new HashSet<int>(closedIds);
+                                _allProductData = _allProductData.Where(d => !closedSet.Contains(d.ProductID)).ToList();
+                            }
+                        }
+
                         var fullTmIdsInGrid = _allProductData.Select(d => d.FullTMID).Where(id => id > 0).Distinct().ToList();
 
                         var errorsWithInsp = context.Error
@@ -2338,6 +2477,11 @@ namespace SaveData1
 
             if (_currentWorkMode == WorkMode.PolletnikAutoTesting)
             {
+                if (!ProductLifecycleService.TryValidateAutoTestAccess(productId, _currentUser.UserID, out string blockPol))
+                {
+                    MessageBox.Show(blockPol, "Тестирование полётников", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 if (requireManualUnlockForDoubleClick)
                 {
                     using (var ctx = ConnectionHelper.CreateContext())
@@ -2358,6 +2502,11 @@ namespace SaveData1
             }
             if (_currentWorkMode == WorkMode.CrossPlataAutoTesting)
             {
+                if (!ProductLifecycleService.TryValidateAutoTestAccess(productId, _currentUser.UserID, out string blockCross))
+                {
+                    MessageBox.Show(blockCross, "Тестирование кросс-плат", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 if (requireManualUnlockForDoubleClick)
                 {
                     using (var ctx = ConnectionHelper.CreateContext())
@@ -2852,18 +3001,31 @@ namespace SaveData1
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+            if (_currentWorkMode == WorkMode.Inspection)
+            {
+                MessageBox.Show(
+                    "В режиме «Инспекция» смена статуса через эту кнопку не поддерживается (в таблице — записи по ярлыкам, не сборка/тест).",
+                    "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             var row = dgvProducts.SelectedRows[0];
             int tmId = Convert.ToInt32(row.Cells["TMID"].Value);
+            bool isTestingRow = _currentWorkMode == WorkMode.Testing
+                || _currentWorkMode == WorkMode.PolletnikAutoTesting
+                || _currentWorkMode == WorkMode.CrossPlataAutoTesting;
             if (tmId == 0)
             {
-                MessageBox.Show("Для продукта без записи о работе статус меняется при первом открытии формы.", "Внимание",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    isTestingRow
+                        ? "Нет записи тестирования (TechnicalMapTesting). Статус можно изменить после появления строки теста (старт теста или успешное завершение в БД)."
+                        : "Для продукта без записи о работе статус меняется при первом открытии формы.",
+                    "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
             bool inProgress = (bool)row.Cells["InProgress"].Value;
             bool ready = (bool)row.Cells["IsReady"].Value;
 
-            using (var form = new ChangeStatusForm(tmId, inProgress, ready))
+            using (var form = new ChangeStatusForm(tmId, inProgress, ready, isTestingRow))
             {
                 if (form.ShowDialog(this) == DialogResult.OK)
                     LoadProductsForSelectedAct();
@@ -2929,8 +3091,10 @@ namespace SaveData1
                         return;
                     }
 
-                    string actFolderName = "Отгрузка_" + categoryName + "_Акт_" + actNumber;
-                    string actFolder = Path.Combine(basePath, actFolderName);
+                    // Защита от вложенности: если пользователь выбрал уже существующую
+                    // папку «Отгрузка_..._Акт_...», снимаем этот суффикс — иначе возникает
+                    // вложенная папка вида \Отгрузка_X_Акт_1\Отгрузка_X_Акт_1\.
+                    string actFolder = ActFolderPathHelper.BuildActFolderPath(basePath, categoryName, actNumber);
                     Directory.CreateDirectory(actFolder);
 
                     foreach (var product in productsInAct)
@@ -3142,7 +3306,65 @@ namespace SaveData1
             using (var f = new PostTestingShipToWarehouseForm(actNumber, _currentUser))
             {
                 if (f.ShowDialog(this) == DialogResult.OK)
+                {
+                    // Обновляем и список актов — акт, у которого все продукты отгружены,
+                    // должен исчезнуть из списка выбора.
+                    LoadActs();
                     LoadProductsForSelectedAct();
+                }
+            }
+        }
+
+        private async void btnShipWithoutTesting_Click(object sender, EventArgs e)
+        {
+            if (!_isAdmin)
+            {
+                MessageBox.Show(this,
+                    "Операция доступна только пользователям с ролью «Администратор».",
+                    "Отгрузка без тестирования",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (!TryGetSelectedConcreteActNumber(out string actNumber)) return;
+
+            using (var dlg = new ShipWithoutTestingDialog(actNumber))
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                string reason = dlg.Reason;
+
+                if (MessageBox.Show(this,
+                        $"Отгрузить акт № {actNumber} на склад БЕЗ прохождения тестирования и контроля?\n\n" +
+                        $"Причина: {reason}\n\n" +
+                        "Операция необратима и будет записана в журнал (кто/когда/почему).",
+                        "Подтверждение отгрузки без тестирования",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                    return;
+
+                var (ok, result) = await this.RunWithWaitAsync(
+                    () => System.Threading.Tasks.Task.Run(() =>
+                        Services.ProductLifecycleService.ShipActWithoutTesting(actNumber, reason, _currentUser.UserID)),
+                    "Отгрузка без тестирования",
+                    btnShipWithoutTesting);
+                if (!ok) return;
+
+                if (result.Saved == 0)
+                {
+                    MessageBox.Show(this,
+                        $"Ни один продукт не отгружен: {result.AlreadyShipped} уже отгружены, {result.NotEligible} изолированы.",
+                        "Отгрузка без тестирования",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                MessageBox.Show(this,
+                    $"Отгружено без тестирования: {result.Saved}.\n" +
+                    (result.AlreadyShipped > 0 ? $"Уже были на складе: {result.AlreadyShipped}.\n" : "") +
+                    (result.NotEligible > 0 ? $"Пропущено изолированных: {result.NotEligible}." : ""),
+                    "Отгрузка без тестирования",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // Акт, у которого все продукты отгружены, должен исчезнуть из списка выбора.
+                LoadActs();
+                LoadProductsForSelectedAct();
             }
         }
 
@@ -4273,8 +4495,9 @@ namespace SaveData1
                             categoryName = firstProduct.ProducType.TypeName;
                     }
 
-                    string actFolderName = "Отгрузка_" + categoryName + "_Акт_" + actNumber;
-                    string actFolder = Path.Combine(basePath, actFolderName);
+                    // Защита от вложенности: если basePath уже заканчивается на «Отгрузка_..._Акт_...»,
+                    // не добавляем ещё один уровень.
+                    string actFolder = ActFolderPathHelper.BuildActFolderPath(basePath, categoryName, actNumber);
                     Directory.CreateDirectory(actFolder);
 
                     using (var context = ConnectionHelper.CreateContext())
@@ -4428,49 +4651,131 @@ namespace SaveData1
             LoadDefectStatistics();
         }
 
-        /// <summary>Сводка по актам на отгрузке (IsReady): тест, брак, контроль, передача на склад.</summary>
-        private static (int total, int testedOk, int defect, int qcPassed, int shippedPost, string actFullQc)
-            ComputeProductionStageStats(
-                IEnumerable<(int ProductID, DateTime? PostTestingWarehouseAt, bool QualityControlPassed)> products,
-                IReadOnlyDictionary<int, TechnicalMapFull> fullRows)
+        /// <summary>Строка сводки по этапам — публичные свойства для DataGridView.</summary>
+        private sealed class ProductionStageRow
         {
-            var list = products as IList<(int ProductID, DateTime? PostTestingWarehouseAt, bool QualityControlPassed)> ?? products.ToList();
+            public string Категория { get; set; }
+            public string Акт { get; set; }
+            public int Всего { get; set; }
+            public int УспешноТест { get; set; }
+            public int Брак { get; set; }
+            public int КонтрольПройден { get; set; }
+            public int НаСкладеПослеТеста { get; set; }
+            public string АктПолностьюКонтроль { get; set; }
+            /// <summary>Совпадение «Всего» и «На складе после теста» для строки акта.</summary>
+            public string АктПолностьюОтгружен { get; set; }
+            /// <summary>Причина из журнала отгрузки без тестирования (по совпадению ActID + дата отгрузки).</summary>
+            public string ОтгруженоБезТестирования { get; set; }
+            public bool IsSummary { get; set; }
+        }
+
+        /// <summary>Сводка по актам на отгрузке (IsReady): тест, брак, контроль, передача на склад.</summary>
+        private static (int total, int testedOk, int defect, int qcPassed, int shippedPost)
+            ComputeProductionStageStats(
+                IEnumerable<(int ProductID, DateTime? PostTestingWarehouseAt, bool QualityControlPassed, string ShipmentSkipReason, string Category)> products,
+                IReadOnlyDictionary<int, TechnicalMapFull> fullRows,
+                SaveDataEntities2 ctx)
+        {
+            var list = products as IList<(int ProductID, DateTime? PostTestingWarehouseAt, bool QualityControlPassed, string ShipmentSkipReason, string Category)> ?? products.ToList();
             int total = list.Count;
             int testedOk = 0, defect = 0, qcPassed = 0, shippedPost = 0;
-            int eligibleQc = 0;
-            bool allEligibleQc = true;
 
             foreach (var p in list)
             {
+                bool adminSkipShip = !string.IsNullOrWhiteSpace(p.ShipmentSkipReason);
+
                 if (p.PostTestingWarehouseAt != null)
                     shippedPost++;
-                if (p.QualityControlPassed)
+                if (p.QualityControlPassed && !adminSkipShip)
                     qcPassed++;
 
-                if (!fullRows.TryGetValue(p.ProductID, out var full) || full.Inspection
-                    || full.TechnicalMapAssembly == null || !full.TechnicalMapAssembly.Any(a => a.IsReady))
+                bool skipAsm = ProductLifecycleValidation.ProductTypeHasNoAssemblyWorkflow(p.Category ?? "");
+
+                void CountSuccessfulTestForQcColumn()
+                {
+                    testedOk++;
+                }
+
+                if (!fullRows.TryGetValue(p.ProductID, out var full))
+                {
+                    if (skipAsm && ProductLifecycleValidation.LatestTestingSucceeded(ctx, p.ProductID))
+                        CountSuccessfulTestForQcColumn();
+                    continue;
+                }
+
+                if (full.Inspection)
                     continue;
 
-                var asm = full.TechnicalMapAssembly.OrderByDescending(a => a.TMAID).FirstOrDefault();
-                var tst = full.TechnicalMapTesting != null && full.TechnicalMapTesting.Count > 0
+                if (skipAsm)
+                {
+                    if (ProductLifecycleValidation.LatestTestingSucceeded(ctx, p.ProductID))
+                        CountSuccessfulTestForQcColumn();
+                    else
+                    {
+                        var asm = full.TechnicalMapAssembly != null
+                            ? full.TechnicalMapAssembly.OrderByDescending(a => a.TMAID).FirstOrDefault()
+                            : null;
+                        var tst = full.TechnicalMapTesting != null && full.TechnicalMapTesting.Count > 0
+                            ? full.TechnicalMapTesting.OrderByDescending(t => t.TMTID).First()
+                            : null;
+                        if ((asm != null && asm.Fault) || (tst != null && tst.Fault))
+                            defect++;
+                    }
+                    continue;
+                }
+
+                if (full.TechnicalMapAssembly == null || !full.TechnicalMapAssembly.Any(a => a.IsReady))
+                    continue;
+
+                var asmStd = full.TechnicalMapAssembly.OrderByDescending(a => a.TMAID).FirstOrDefault();
+                var tstStd = full.TechnicalMapTesting != null && full.TechnicalMapTesting.Count > 0
                     ? full.TechnicalMapTesting.OrderByDescending(t => t.TMTID).First()
                     : null;
 
-                bool asmFault = asm != null && asm.Fault;
-                bool tstFault = tst != null && tst.Fault;
-                if (asmFault || tstFault)
+                bool asmFaultStd = asmStd != null && asmStd.Fault;
+                bool tstFaultStd = tstStd != null && tstStd.Fault;
+                if (asmFaultStd || tstFaultStd)
                     defect++;
-                else if (tst != null && tst.IsReadt && !tst.Fault)
-                {
-                    testedOk++;
-                    eligibleQc++;
-                    if (!p.QualityControlPassed)
-                        allEligibleQc = false;
-                }
+                else if (tstStd != null && tstStd.IsReadt && !tstStd.Fault)
+                    CountSuccessfulTestForQcColumn();
             }
 
-            string actFullQc = eligibleQc == 0 ? "—" : (allEligibleQc ? "Да" : "Нет");
-            return (total, testedOk, defect, qcPassed, shippedPost, actFullQc);
+            return (total, testedOk, defect, qcPassed, shippedPost);
+        }
+
+        /// <summary>«Акт полностью на контроле»: «Да», если число «Прошли контроль» равно «Всего» в строке.</summary>
+        private static string FormatActFullyOnControlForRow(int totalProducts, int qcPassedCount)
+        {
+            if (totalProducts == 0) return "—";
+            return qcPassedCount == totalProducts ? "Да" : "Нет";
+        }
+
+        /// <summary>«Акт полностью отгружен»: «Да», если «На складе после теста» равно «Всего» в строке.</summary>
+        private static string FormatActFullyShippedForRow(int totalProducts, int shippedAfterTestCount)
+        {
+            if (totalProducts == 0) return "—";
+            return shippedAfterTestCount == totalProducts ? "Да" : "Нет";
+        }
+
+        private static string FormatProductionStageSkipReasons(IEnumerable<string> reasons)
+        {
+            var distinct = reasons.Where(r => !string.IsNullOrWhiteSpace(r)).Select(r => r.Trim()).Distinct(StringComparer.Ordinal).ToList();
+            if (distinct.Count == 0) return "—";
+            return string.Join("; ", distinct);
+        }
+
+        /// <summary>Причина из журнала «отгрузка без тестирования» для акта (последняя запись по дате).</summary>
+        private static string TryResolveShipmentWithoutTestingReason(int actId, List<ShipmentWithoutTesting> journalRows)
+        {
+            if (journalRows == null || journalRows.Count == 0) return null;
+            var match = journalRows
+                .Where(s => s.ActID == actId)
+                .OrderByDescending(s => s.ShipmentUtc)
+                .ThenByDescending(s => s.ShipmentID)
+                .FirstOrDefault();
+            if (match == null) return null;
+            string r = match.Reason;
+            return string.IsNullOrWhiteSpace(r) ? null : r.Trim();
         }
 
         private void LoadProductionStageStatistics()
@@ -4478,21 +4783,63 @@ namespace SaveData1
             if (dgvProductionStages == null) return;
             try
             {
+                var (utcRangeStart, utcRangeEndExclusive) = GetProductionStagesDateRange();
+
                 using (var ctx = ConnectionHelper.CreateContext())
                 {
                     // Проекция только нужных полей Product — не тянем новые колонки модели (например AssemblyManualUnlock*),
                     // если схема БД ещё не обновлена.
-                    var productRows = ctx.Product.AsNoTracking()
-                        .Where(p => p.Act != null && p.Act.IsReady)
+                    var baseQuery = ctx.Product.AsNoTracking()
+                        .Where(p => p.Act != null && p.Act.IsReady);
+                    if (utcRangeStart.HasValue && utcRangeEndExclusive.HasValue)
+                    {
+                        DateTime utcStart = utcRangeStart.Value;
+                        DateTime utcEndExclusive = utcRangeEndExclusive.Value;
+                        baseQuery = baseQuery.Where(p => p.PostTestingWarehouseAt != null
+                            && p.PostTestingWarehouseAt >= utcStart && p.PostTestingWarehouseAt < utcEndExclusive);
+                    }
+
+                    var productRowsRaw = baseQuery
                         .Select(p => new
                         {
                             p.ProductID,
                             p.PostTestingWarehouseAt,
                             p.QualityControlPassed,
+                            p.ActID,
                             ActNumber = p.Act.ActNumber,
                             Category = p.ProducType != null ? p.ProducType.TypeName : "—"
                         })
                         .ToList();
+
+                    var actIdsInScope = productRowsRaw.Where(p => p.ActID.HasValue).Select(p => p.ActID.Value).Distinct().ToList();
+                    List<ShipmentWithoutTesting> shipmentJournalRows = new List<ShipmentWithoutTesting>();
+                    try
+                    {
+                        if (actIdsInScope.Count > 0)
+                            shipmentJournalRows = ctx.ShipmentWithoutTesting.AsNoTracking()
+                                .Where(s => actIdsInScope.Contains(s.ActID))
+                                .ToList();
+                    }
+                    catch
+                    {
+                        // Таблица журнала ещё не развёрнута — колонка причин останется «—».
+                    }
+
+                    var productRows = productRowsRaw.Select(p =>
+                    {
+                        string skipReason = null;
+                        if (p.ActID.HasValue && p.PostTestingWarehouseAt.HasValue)
+                            skipReason = TryResolveShipmentWithoutTestingReason(p.ActID.Value, shipmentJournalRows);
+                        return new
+                        {
+                            p.ProductID,
+                            p.PostTestingWarehouseAt,
+                            p.QualityControlPassed,
+                            p.ActNumber,
+                            p.Category,
+                            ShipmentSkipReason = skipReason
+                        };
+                    }).ToList();
 
                     var fullRows = ctx.TechnicalMapFull.AsNoTracking()
                         .Include("TechnicalMapAssembly")
@@ -4507,7 +4854,8 @@ namespace SaveData1
                         .OrderBy(n => n)
                         .ToList();
 
-                    var rows = new List<object>();
+                    var rows = new List<ProductionStageRow>();
+
                     foreach (string category in categoryNames)
                     {
                         var allInCategory = productRows.Where(p => p.Category == category).ToList();
@@ -4515,9 +4863,10 @@ namespace SaveData1
                             continue;
 
                         var sum = ComputeProductionStageStats(
-                            allInCategory.Select(p => (p.ProductID, p.PostTestingWarehouseAt, p.QualityControlPassed)),
-                            fullRows);
-                        rows.Add(new
+                            allInCategory.Select(p => (p.ProductID, p.PostTestingWarehouseAt, p.QualityControlPassed, p.ShipmentSkipReason, p.Category)),
+                            fullRows,
+                            ctx);
+                        rows.Add(new ProductionStageRow
                         {
                             Категория = category,
                             Акт = "Итого по категории",
@@ -4526,7 +4875,10 @@ namespace SaveData1
                             Брак = sum.defect,
                             КонтрольПройден = sum.qcPassed,
                             НаСкладеПослеТеста = sum.shippedPost,
-                            АктПолностьюКонтроль = sum.actFullQc
+                            АктПолностьюКонтроль = "—",
+                            АктПолностьюОтгружен = "—",
+                            ОтгруженоБезТестирования = FormatProductionStageSkipReasons(allInCategory.Select(p => p.ShipmentSkipReason)),
+                            IsSummary = true
                         });
 
                         foreach (var actNumber in productRows.Where(p => p.Category == category).Select(p => p.ActNumber).Distinct().OrderBy(n => n))
@@ -4535,9 +4887,10 @@ namespace SaveData1
                             if (grp.Count == 0)
                                 continue;
                             var d = ComputeProductionStageStats(
-                                grp.Select(p => (p.ProductID, p.PostTestingWarehouseAt, p.QualityControlPassed)),
-                                fullRows);
-                            rows.Add(new
+                                grp.Select(p => (p.ProductID, p.PostTestingWarehouseAt, p.QualityControlPassed, p.ShipmentSkipReason, p.Category)),
+                                fullRows,
+                                ctx);
+                            rows.Add(new ProductionStageRow
                             {
                                 Категория = category,
                                 Акт = actNumber,
@@ -4546,7 +4899,10 @@ namespace SaveData1
                                 Брак = d.defect,
                                 КонтрольПройден = d.qcPassed,
                                 НаСкладеПослеТеста = d.shippedPost,
-                                АктПолностьюКонтроль = d.actFullQc
+                                АктПолностьюКонтроль = FormatActFullyOnControlForRow(d.total, d.qcPassed),
+                                АктПолностьюОтгружен = FormatActFullyShippedForRow(d.total, d.shippedPost),
+                                ОтгруженоБезТестирования = FormatProductionStageSkipReasons(grp.Select(p => p.ShipmentSkipReason)),
+                                IsSummary = false
                             });
                         }
                     }
@@ -4560,6 +4916,19 @@ namespace SaveData1
                     if (dgvProductionStages.Columns.Contains("КонтрольПройден")) dgvProductionStages.Columns["КонтрольПройден"].HeaderText = "Прошли контроль";
                     if (dgvProductionStages.Columns.Contains("НаСкладеПослеТеста")) dgvProductionStages.Columns["НаСкладеПослеТеста"].HeaderText = "На складе после теста";
                     if (dgvProductionStages.Columns.Contains("АктПолностьюКонтроль")) dgvProductionStages.Columns["АктПолностьюКонтроль"].HeaderText = "Акт полностью на контроле";
+                    if (dgvProductionStages.Columns.Contains("АктПолностьюОтгружен")) dgvProductionStages.Columns["АктПолностьюОтгружен"].HeaderText = "Акт полностью отгружен";
+                    if (dgvProductionStages.Columns.Contains("ОтгруженоБезТестирования")) dgvProductionStages.Columns["ОтгруженоБезТестирования"].HeaderText = "Отгружено без тестирования";
+                    if (dgvProductionStages.Columns.Contains("IsSummary")) dgvProductionStages.Columns["IsSummary"].Visible = false;
+
+                    // Серым красим строки «Итого по категории» и «ВСЕГО».
+                    foreach (DataGridViewRow r in dgvProductionStages.Rows)
+                    {
+                        if (r.DataBoundItem is ProductionStageRow ps && ps.IsSummary)
+                        {
+                            r.DefaultCellStyle.BackColor = Color.LightGray;
+                            r.DefaultCellStyle.Font = new Font(dgvProductionStages.Font, FontStyle.Bold);
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -4573,6 +4942,72 @@ namespace SaveData1
         {
             LoadProductionStageStatistics();
         }
+
+        #region Production-stage date filter
+
+        /// <summary>Диапазон дат отгрузки на склад (<c>PostTestingWarehouseAt</c>) — фильтр сводки всегда включён.</summary>
+        private DateTimePicker _dtProductionStagesFrom;
+        private DateTimePicker _dtProductionStagesTo;
+        private Label _lblProductionStagesFrom;
+        private Label _lblProductionStagesTo;
+
+        /// <summary>
+        /// Создаёт на вкладке «Сводка по тестированию» выбор периода по дате отгрузки на склад.
+        /// По умолчанию оба поля — текущая дата; учитываются только продукты с отгрузкой в выбранном диапазоне.
+        /// </summary>
+        private void BuildProductionStageFilterControls()
+        {
+            if (_dtProductionStagesFrom != null) return;
+            if (tabAdminProductionStages == null || dgvProductionStages == null) return;
+
+            var today = DateTime.Today;
+            _lblProductionStagesFrom = new Label { Text = "Дата отгрузки с:", Left = 8, Top = 14, AutoSize = true };
+            _dtProductionStagesFrom = new DateTimePicker
+            {
+                Left = 118,
+                Top = 10,
+                Width = 140,
+                Format = DateTimePickerFormat.Short,
+                Value = today
+            };
+            _lblProductionStagesTo = new Label { Text = "по:", Left = 268, Top = 14, AutoSize = true };
+            _dtProductionStagesTo = new DateTimePicker
+            {
+                Left = 298,
+                Top = 10,
+                Width = 140,
+                Format = DateTimePickerFormat.Short,
+                Value = today
+            };
+
+            _dtProductionStagesFrom.ValueChanged += (s, ev) => LoadProductionStageStatistics();
+            _dtProductionStagesTo.ValueChanged += (s, ev) => LoadProductionStageStatistics();
+
+            tabAdminProductionStages.Controls.Add(_lblProductionStagesFrom);
+            tabAdminProductionStages.Controls.Add(_dtProductionStagesFrom);
+            tabAdminProductionStages.Controls.Add(_lblProductionStagesTo);
+            tabAdminProductionStages.Controls.Add(_dtProductionStagesTo);
+        }
+
+        /// <summary>
+        /// Границы для фильтра <c>PostTestingWarehouseAt</c> (в БД — UTC): начало первого выбранного локального дня (включительно)
+        /// и начало дня после последнего выбранного (исключительно), чтобы все отгрузки за «с» и «по» попадали в выборку.
+        /// </summary>
+        private (DateTime? utcStartInclusive, DateTime? utcEndExclusive) GetProductionStagesDateRange()
+        {
+            if (_dtProductionStagesFrom == null || _dtProductionStagesTo == null)
+                return (null, null);
+            DateTime fromLocal = _dtProductionStagesFrom.Value.Date;
+            DateTime toLocal = _dtProductionStagesTo.Value.Date;
+            if (fromLocal > toLocal) { var tmp = fromLocal; fromLocal = toLocal; toLocal = tmp; }
+
+            TimeZoneInfo tz = TimeZoneInfo.Local;
+            DateTime utcStart = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(fromLocal, DateTimeKind.Unspecified), tz);
+            DateTime utcEndExclusive = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(toLocal.AddDays(1), DateTimeKind.Unspecified), tz);
+            return (utcStart, utcEndExclusive);
+        }
+
+        #endregion
 
         #endregion
     }

@@ -75,6 +75,11 @@ namespace SaveData1.CrossPlateTesting.Models
         /// и не реагирует на v1-пакеты. На приём мы всегда понимаем оба формата.
         /// </summary>
         public bool UseMavLinkV2 { get; set; } = false;
+        /// <summary>
+        /// Разрешено ли редактирование сетевых настроек (порт/таймаут/адрес пинга/v2/пропуск MAVLink)
+        /// в UI CrossPlateTestingPanel. По умолчанию false — чтобы случайно не изменить рабочую конфигурацию.
+        /// </summary>
+        public bool AdvancedNetworkEditable { get; set; } = false;
         public string ExcelOutputFolder { get; set; } = "";
         public string TesterFio { get; set; } = "";
         public string ActNumber { get; set; } = "";

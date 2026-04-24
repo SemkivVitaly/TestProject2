@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
 using System.Windows.Forms;
+using SaveData1.CrossPlateTesting.Services;
 using SaveData1.Entity;
 using SaveData1.Helpers;
 using SaveData1.Services;
@@ -42,28 +43,39 @@ namespace SaveData1.Froms
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Serial", HeaderText = "Серийный номер", FillWeight = 60 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Category", HeaderText = "Категория", FillWeight = 40 });
 
-            var rows = await DbOperation.RunAsync(ctx => ctx.TechnicalMapFull
-                .AsNoTracking()
-                .Include(f => f.Product)
-                .Include(f => f.Product.ProducType)
-                .Include("TechnicalMapAssembly")
-                .Include("TechnicalMapTesting")
-                .Where(f => f.Product.Act != null && f.Product.Act.ActNumber == _actNumber
-                    && !f.Inspection
-                    && f.TechnicalMapAssembly.Any(a => a.IsReady)
-                    && f.Product.QualityControlPassed
-                    && f.Product.PostTestingWarehouseAt == null)
-                .ToList(),
-                "PostTestingShipToWarehouseForm.LoadGrid");
-
-            foreach (var f in rows.OrderBy(x => x.Product.ProductSerial))
+            string bridgeTypeName = BridgeDbHelper.GetBridgeProductTypeName();
+            var rowItems = await DbOperation.RunAsync(ctx =>
             {
-                var tst = f.TechnicalMapTesting?.OrderByDescending(t => t.TMTID).FirstOrDefault();
-                if (tst == null || !tst.IsReadt || tst.Fault)
-                    continue;
-                string cat = f.Product.ProducType != null ? f.Product.ProducType.TypeName : "";
-                dgv.Rows.Add(f.ProductID, f.Product.ProductSerial, cat);
-            }
+                var rows = ctx.TechnicalMapFull
+                    .AsNoTracking()
+                    .Include(f => f.Product)
+                    .Include(f => f.Product.ProducType)
+                    .Include("TechnicalMapAssembly")
+                    .Include("TechnicalMapTesting")
+                    .Where(f => f.Product.Act != null && f.Product.Act.ActNumber == _actNumber
+                        && !f.Inspection
+                        && f.Product.QualityControlPassed
+                        && f.Product.PostTestingWarehouseAt == null
+                        && (f.TechnicalMapAssembly.Any(a => a.IsReady)
+                            || (f.Product.ProducType != null
+                                && (f.Product.ProducType.TypeName == ProductLifecycleValidation.PolletnikiProductTypeName
+                                    || f.Product.ProducType.TypeName == CrossPlateDbHelper.CrossProductTypeName
+                                    || f.Product.ProducType.TypeName == bridgeTypeName))))
+                    .ToList();
+
+                var list = new List<(int ProductID, string Serial, string Category)>();
+                foreach (var f in rows.OrderBy(x => x.Product.ProductSerial))
+                {
+                    if (!ProductLifecycleValidation.LatestTestingSucceeded(ctx, f.ProductID))
+                        continue;
+                    string cat = f.Product.ProducType != null ? f.Product.ProducType.TypeName : "";
+                    list.Add((f.ProductID, f.Product.ProductSerial ?? "", cat));
+                }
+                return list;
+            }, "PostTestingShipToWarehouseForm.LoadGrid");
+
+            foreach (var item in rowItems)
+                dgv.Rows.Add(item.ProductID, item.Serial, item.Category);
 
             lblCount.Text = $"Всего к передаче: {dgv.Rows.Count}";
         }

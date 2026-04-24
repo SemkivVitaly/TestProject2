@@ -11,6 +11,7 @@ using System.Windows.Forms;
 using SaveData1;
 using SaveData1.Entity;
 using SaveData1.Helpers;
+using SaveData1.Services;
 
 namespace SaveData1.Froms
 {
@@ -102,11 +103,16 @@ namespace SaveData1.Froms
             string typeName = BridgeDbHelper.GetBridgeProductTypeName();
             using (var ctx = ConnectionHelper.CreateContext())
             {
-                return ctx.Product.AsNoTracking()
+                var rows = ctx.Product.AsNoTracking()
                     .Where(p => p.ActID == _actId && p.ProducType != null &&
-                        p.ProducType.TypeName == typeName)
-                    .Select(p => p.ProductSerial)
-                    .Where(s => !string.IsNullOrEmpty(s))
+                        p.ProducType.TypeName == typeName
+                        && p.PostTestingWarehouseAt == null && !p.QualityControlPassed)
+                    .Select(p => new { p.ProductID, p.ProductSerial })
+                    .ToList();
+                var busy = ProductLifecycleService.GetProductIdsWhereLatestTestingIsInProgress(rows.Select(r => r.ProductID));
+                return rows
+                    .Where(r => !busy.Contains(r.ProductID) && !string.IsNullOrEmpty(r.ProductSerial))
+                    .Select(r => r.ProductSerial)
                     .Distinct()
                     .OrderBy(s => s)
                     .ToList();
@@ -215,6 +221,23 @@ namespace SaveData1.Froms
                 txtSerial.Focus();
                 return;
             }
+
+            using (var ctxLock = ConnectionHelper.CreateContext())
+            {
+                var prodLock = ctxLock.Product.AsNoTracking()
+                    .FirstOrDefault(p => p.ActID == _actId && p.ProductSerial == serial);
+                if (prodLock != null &&
+                    !ProductLifecycleService.TryValidateAutoTestAccess(prodLock.ProductID, _user.UserID, out string blockBr))
+                {
+                    MessageBox.Show(this,
+                        blockBr + "\n\nДождитесь освобождения или обратитесь к администратору.",
+                        Text,
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+
             if (root.Length == 0)
             {
                 MessageBox.Show(this, "Укажите путь к папке для отчётов.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -233,9 +256,26 @@ namespace SaveData1.Froms
                 return;
             }
 
-            string actFolderName = BridgeLogArchiveService.SanitizeFolderName(act);
-            string actRoot = Path.Combine(rootFull, actFolderName);
+            // Защита от вложенности: если в SavePath уже сохранён путь вида
+            // …\Отгрузка_Bridge_Акт_231, не нужно создавать ещё одну такую же папку
+            // внутри. Просто работаем с тем, что уже есть.
+            string typeName = BridgeDbHelper.GetBridgeProductTypeName();
+            string expectedActFolder = ActFolderPathHelper.BuildActFolderName(typeName, act);
+            string actRoot;
+            string rootLeaf;
+            try { rootLeaf = Path.GetFileName(rootFull.TrimEnd('\\', '/')); }
+            catch { rootLeaf = null; }
+            if (!string.IsNullOrEmpty(rootLeaf) &&
+                string.Equals(rootLeaf, expectedActFolder, StringComparison.OrdinalIgnoreCase))
+            {
+                actRoot = rootFull;
+            }
+            else
+            {
+                actRoot = Path.Combine(rootFull, expectedActFolder);
+            }
             Directory.CreateDirectory(actRoot);
+            string actFolderName = Path.GetFileName(actRoot.TrimEnd('\\', '/'));
 
             string reportPath = BridgeExcelReportHelper.GetReportPath(actRoot);
             bool dupFolder = BridgeLogArchiveService.SerialFolderHasSavedContent(actRoot, serial);
@@ -265,6 +305,20 @@ namespace SaveData1.Froms
                 if (ask != DialogResult.Yes)
                     return;
             }
+
+            // «В работе» — в момент начала сохранения логов (скачивание с моста + запись на диск),
+            // после подтверждения дубликатов, чтобы при отмене диалога продукт не оставался занятым.
+            try
+            {
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var product = ctx.Product.AsNoTracking()
+                        .FirstOrDefault(p => p.ActID == _actId && p.ProductSerial == serial);
+                    if (product != null)
+                        ProductLifecycleService.MarkTestingInProgress(product.ProductID, _user.UserID);
+                }
+            }
+            catch { /* вспомогательный статус */ }
 
             string bridgeUrl = ConfigurationManager.AppSettings["BridgeBaseUrl"];
             if (string.IsNullOrWhiteSpace(bridgeUrl))
@@ -315,6 +369,7 @@ namespace SaveData1.Froms
                     return;
                 }
 
+                int productId = 0;
                 try
                 {
                     using (var ctx = ConnectionHelper.CreateContext())
@@ -326,6 +381,11 @@ namespace SaveData1.Froms
                             downloadResult?.UnifiedText,
                             downloadResult?.StatusJson,
                             downloadResult?.MavlinkJson);
+
+                        // Ищем продукт по С/Н — чтобы помечать тестирование успешным.
+                        var product = ctx.Product.AsNoTracking()
+                            .FirstOrDefault(p => p.ActID == _actId && p.ProductSerial == serial);
+                        if (product != null) productId = product.ProductID;
                     }
                     dbOk = true;
                 }
@@ -337,6 +397,24 @@ namespace SaveData1.Froms
                         Text,
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
+                }
+
+                // Отмечаем Bridge-тестирование продукта успешным, чтобы его статус изменился
+                // и он попал в списки контроля качества/отгрузки.
+                if (productId > 0)
+                {
+                    try
+                    {
+                        ProductLifecycleService.RecordSuccessfulAutoTest(productId, _user.UserID);
+                    }
+                    catch (Exception exStatus)
+                    {
+                        MessageBox.Show(this,
+                            "Лог моста сохранён, но не удалось обновить статус продукта в БД.\n" + exStatus.Message,
+                            Text,
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
                 }
 
                 txtSerial.Clear();

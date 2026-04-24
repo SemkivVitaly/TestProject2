@@ -10,6 +10,7 @@
 4. **`ProductQualityControlConstraints.sql`** — ранняя версия CHECK/FK. Если ещё не применялся — применить.
 5. **`DataHygiene_PreHardening.sql`** — **диагностика** перед hardening-миграцией. Только `SELECT`, ничего не меняет.
 6. **`SchemaHardening.sql`** — финальная идемпотентная миграция: сужение типов, `NOT NULL`, уникальные индексы, индексы под запросы, CHECK жизненного цикла и таблица `dbo.ProductPhoto`.
+7. **`CreateShipmentWithoutTesting.sql`** — журнал административных отгрузок актов «без тестирования и контроля» (для трассировки: кто, когда и почему пропустил проверки). Идемпотентен.
 
 ## Процедура безопасного применения
 
@@ -58,6 +59,19 @@ ALTER TABLE dbo.Product DROP CONSTRAINT FK_Product_AssemblyManualUnlockByUser_Us
 -- Таблица фото (ВНИМАНИЕ: удалит все сохранённые фотографии из БД):
 -- DROP TABLE dbo.ProductPhoto;
 ```
+
+## Соответствие скриптов вызовам в приложении (проверка модулей)
+
+| Объект БД / скрипт | Где используется в коде |
+|-------------------|-------------------------|
+| `dbo.BridgeLogSave`, `CreateBridgeLogSave.sql` | [`BridgeLogForm`](../Froms/BridgeLogForm.cs) → `InsertBridgeLogSave` в [`SaveDataEntitiesPartial.cs`](../Entity/SaveDataEntitiesPartial.cs) |
+| `dbo.ShipmentWithoutTesting`, `CreateShipmentWithoutTesting.sql` | [`ProductLifecycleService.ShipActWithoutTesting`](../Services/ProductLifecycleService.cs), просмотр на складе: [`WarehouseForm.LoadShipmentWithoutTestingByAct`](../Froms/WarehouseForm.cs) |
+| `dbo.ProductPhoto`, `SchemaHardening.sql` | [`ProductPhotoService`](../Services/ProductPhotoService.cs), [`ProductWorkForm`](../Froms/ProductWorkForm.cs) |
+| Lifecycle-колонки в `Product`, `ProductQualityControlAndPermissions.sql` | QC и отгрузка: [`ProductLifecycleService`](../Services/ProductLifecycleService.cs), [`QualityControlForm`](../Froms/QualityControlForm.cs), [`PostTestingShipToWarehouseForm`](../Froms/PostTestingShipToWarehouseForm.cs) |
+| `TechnicalMapTesting.InProgress` / успешный тест | Автотесты: [`AutoTestingForm`](../Froms/AutoTestingForm.cs), [`CrossPlateTestingPanel`](../Froms/CrossPlateTestingPanel.cs), [`BridgeLogForm`](../Froms/BridgeLogForm.cs) через `MarkTestingInProgress` / `RecordSuccessfulAutoTest` / `RecordFailedAutoTest` в [`ProductLifecycleService`](../Services/ProductLifecycleService.cs) |
+| Ручное тестирование (OBS) / сборка | [`EmployeeForm`](../Froms/EmployeeForm.cs) → [`ProductWorkForm`](../Froms/ProductWorkForm.cs) (прямое обновление `TechnicalMapTesting` / `TechnicalMapAssembly`) |
+
+Если при работе модуля появляется сообщение «выполните скрипт …», сверьте, что соответствующий `.sql` из этой папки применён к той же БД, что указана в строке подключения приложения.
 
 ## EDMX
 

@@ -45,6 +45,10 @@ namespace SaveData1
         private Button _btnShipAct;
         private Button _btnRemoveFromAct;
 
+        /// <summary>Комбобокс выбора акта на вкладке «После тестирования». Программно создаётся в Load.</summary>
+        private ComboBox _cmbPostTestingAct;
+        private Label _lblPostTestingAct;
+
         private void WarehouseForm_Load(object sender, EventArgs e)
         {
             LoadCategories();
@@ -58,9 +62,95 @@ namespace SaveData1
             AttachProductGridContextMenu(dgvPostTesting, LoadPostTestingProducts);
 
             CreateActActionButtons();
+            BuildPostTestingActSelector();
 
             if (_hasStorageAdmin)
                 CreateStorageAdminTab();
+        }
+
+        /// <summary>
+        /// Добавляет на верхнюю панель вкладки «После тестирования» комбобокс выбора акта.
+        /// По умолчанию выбран пункт «(Выберите акт)» — грид пустой. После выбора акта
+        /// отображаются продукты только этого акта. Предусмотрен пункт «(Все акты)».
+        /// </summary>
+        private void BuildPostTestingActSelector()
+        {
+            if (panelPostTestingTop == null) return;
+
+            _lblPostTestingAct = new Label
+            {
+                AutoSize = true,
+                Left = 470,
+                Top = 12,
+                Text = "Акт:"
+            };
+            _cmbPostTestingAct = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Left = 510,
+                Top = 8,
+                Width = 300
+            };
+            _cmbPostTestingAct.SelectedIndexChanged += (s, ev) => LoadPostTestingProducts();
+
+            panelPostTestingTop.Controls.Add(_lblPostTestingAct);
+            panelPostTestingTop.Controls.Add(_cmbPostTestingAct);
+
+            ReloadPostTestingActList();
+
+            // Живой поиск — обновляем грид при каждом изменении текста (с небольшой защитой
+            // от частого ребилда через Debounce в WinForms-таймере).
+            if (txtPostTestingSearch != null)
+            {
+                _postTestingSearchDebounce = new Timer { Interval = 250 };
+                _postTestingSearchDebounce.Tick += (s, ev) =>
+                {
+                    _postTestingSearchDebounce.Stop();
+                    LoadPostTestingProducts();
+                };
+                txtPostTestingSearch.TextChanged += (s, ev) =>
+                {
+                    _postTestingSearchDebounce.Stop();
+                    _postTestingSearchDebounce.Start();
+                };
+            }
+        }
+
+        private Timer _postTestingSearchDebounce;
+
+        /// <summary>Перезагружает список актов, у которых есть хотя бы один продукт, отгруженный «после теста».</summary>
+        private void ReloadPostTestingActList()
+        {
+            if (_cmbPostTestingAct == null) return;
+            string prev = _cmbPostTestingAct.SelectedItem as string;
+            try
+            {
+                using (var ctx = ConnectionHelper.CreateContext())
+                {
+                    var acts = ctx.Act.AsNoTracking()
+                        .Where(a => a.Product.Any(p => p.PostTestingWarehouseAt != null))
+                        .OrderBy(a => a.ActNumber)
+                        .Select(a => a.ActNumber)
+                        .ToList();
+
+                    _cmbPostTestingAct.Items.Clear();
+                    _cmbPostTestingAct.Items.Add("(Выберите акт)");
+                    _cmbPostTestingAct.Items.Add("(Все акты)");
+                    foreach (var n in acts) _cmbPostTestingAct.Items.Add(n);
+
+                    int idx = 0;
+                    if (!string.IsNullOrEmpty(prev))
+                    {
+                        int found = _cmbPostTestingAct.Items.IndexOf(prev);
+                        if (found >= 0) idx = found;
+                    }
+                    _cmbPostTestingAct.SelectedIndex = idx;
+                }
+            }
+            catch (Exception ex)
+            {
+                ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки актов");
+            }
         }
 
         private void CreateActActionButtons()
@@ -575,12 +665,14 @@ namespace SaveData1
             }
             else if (tabControl.SelectedTab == tabPostTesting)
             {
+                ReloadPostTestingActList();
                 LoadPostTestingProducts();
             }
         }
 
         private void btnPostTestingRefresh_Click(object sender, EventArgs e)
         {
+            ReloadPostTestingActList();
             LoadPostTestingProducts();
         }
 
@@ -590,12 +682,27 @@ namespace SaveData1
             try
             {
                 string search = (txtPostTestingSearch?.Text ?? "").Trim().ToLowerInvariant();
+                string selectedAct = _cmbPostTestingAct?.SelectedItem as string;
+
+                // Без выбранного акта показываем пустой грид — пользователь должен выбрать акт.
+                if (string.IsNullOrEmpty(selectedAct) || selectedAct == "(Выберите акт)")
+                {
+                    dgvPostTesting.DataSource = null;
+                    return;
+                }
+
                 using (var context = ConnectionHelper.CreateContext())
                 {
                     var q = context.Product.AsNoTracking()
                         .Include(p => p.ProducType)
                         .Include(p => p.Act)
                         .Where(p => p.PostTestingWarehouseAt != null);
+
+                    if (selectedAct != "(Все акты)")
+                    {
+                        q = q.Where(p => p.Act != null && p.Act.ActNumber == selectedAct);
+                    }
+
                     if (!string.IsNullOrEmpty(search))
                     {
                         q = q.Where(p =>
@@ -604,16 +711,43 @@ namespace SaveData1
                             (p.Act != null && p.Act.ActNumber != null && p.Act.ActNumber.ToLower().Contains(search)));
                     }
 
-                    var list = q.OrderByDescending(p => p.PostTestingWarehouseAt)
+                    var raw = q.OrderByDescending(p => p.PostTestingWarehouseAt)
                         .Select(p => new
                         {
                             p.ProductID,
                             SerialNumber = p.ProductSerial,
                             Category = p.ProducType != null ? p.ProducType.TypeName : "",
+                            ActID = (int?)p.ActID,
                             Act = p.Act != null ? p.Act.ActNumber : "—",
                             Передано = p.PostTestingWarehouseAt
                         })
                         .ToList();
+
+                    // Подтягиваем причину/дату «отгрузки без тестирования» по ActID.
+                    // Если таблицы нет — молча игнорируем, показываем только базовые поля.
+                    var skipByAct = LoadShipmentWithoutTestingByAct(context, raw.Where(r => r.ActID.HasValue).Select(r => r.ActID.Value).Distinct().ToList());
+
+                    var list = raw.Select(p =>
+                    {
+                        string reason = "";
+                        DateTime? skipUtc = null;
+                        if (p.ActID.HasValue && skipByAct.ContainsKey(p.ActID.Value))
+                        {
+                            var info = skipByAct[p.ActID.Value];
+                            reason = info.Reason;
+                            skipUtc = info.ShipmentUtc;
+                        }
+                        return new
+                        {
+                            p.ProductID,
+                            p.SerialNumber,
+                            p.Category,
+                            p.Act,
+                            Передано = p.Передано,
+                            ПричинаБезТеста = reason,
+                            ОтгруженоБезТеста = skipUtc
+                        };
+                    }).ToList();
 
                     dgvPostTesting.DataSource = list;
                     if (dgvPostTesting.Columns.Contains("ProductID")) dgvPostTesting.Columns["ProductID"].Visible = false;
@@ -621,12 +755,67 @@ namespace SaveData1
                     if (dgvPostTesting.Columns.Contains("Category")) dgvPostTesting.Columns["Category"].HeaderText = "Категория";
                     if (dgvPostTesting.Columns.Contains("Act")) dgvPostTesting.Columns["Act"].HeaderText = "Акт";
                     if (dgvPostTesting.Columns.Contains("Передано")) dgvPostTesting.Columns["Передано"].HeaderText = "Передано на склад (UTC)";
+                    if (dgvPostTesting.Columns.Contains("ОтгруженоБезТеста"))
+                    {
+                        dgvPostTesting.Columns["ОтгруженоБезТеста"].HeaderText = "Отгрузка без теста (UTC)";
+                        dgvPostTesting.Columns["ОтгруженоБезТеста"].DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
+                    }
+                    if (dgvPostTesting.Columns.Contains("ПричинаБезТеста"))
+                    {
+                        dgvPostTesting.Columns["ПричинаБезТеста"].HeaderText = "Причина отгрузки без тестирования";
+                        dgvPostTesting.Columns["ПричинаБезТеста"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                        dgvPostTesting.Columns["ПричинаБезТеста"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+                    }
                 }
             }
             catch (Exception ex)
             {
                 ExceptionDisplay.ShowError(this, ex, "Ошибка загрузки");
             }
+        }
+
+        /// <summary>
+        /// Загружает последнюю запись журнала <c>dbo.ShipmentWithoutTesting</c> для каждого актового
+        /// ID из указанного списка. Возвращает словарь ActID → (Reason, ShipmentUtc). Если таблицы
+        /// нет (скрипт ещё не применён) — возвращает пустой словарь без выброса исключения.
+        /// </summary>
+        private static System.Collections.Generic.Dictionary<int, (string Reason, DateTime ShipmentUtc)>
+            LoadShipmentWithoutTestingByAct(SaveDataEntities2 context, System.Collections.Generic.IList<int> actIds)
+        {
+            var result = new System.Collections.Generic.Dictionary<int, (string, DateTime)>();
+            if (actIds == null || actIds.Count == 0) return result;
+            try
+            {
+                // JOIN через подзапрос: по каждому ActID берём САМУЮ СВЕЖУЮ запись.
+                const string sql =
+                    "SELECT s.ActID, s.Reason, s.ShipmentUtc " +
+                    "FROM dbo.ShipmentWithoutTesting s " +
+                    "INNER JOIN (" +
+                    "  SELECT ActID, MAX(ShipmentUtc) AS MaxUtc FROM dbo.ShipmentWithoutTesting GROUP BY ActID" +
+                    ") m ON m.ActID = s.ActID AND m.MaxUtc = s.ShipmentUtc";
+                var rows = context.Database.SqlQuery<ShipmentWithoutTestingRow>(sql).ToList();
+                var wanted = new System.Collections.Generic.HashSet<int>(actIds);
+                foreach (var r in rows)
+                {
+                    if (!wanted.Contains(r.ActID)) continue;
+                    if (!result.ContainsKey(r.ActID))
+                        result[r.ActID] = (r.Reason ?? "", r.ShipmentUtc);
+                }
+            }
+            catch
+            {
+                // Таблица не создана либо недоступна — скрываем колонку причиной
+                // «пустая» и не падаем.
+            }
+            return result;
+        }
+
+        /// <summary>Раскладка строки журнала отгрузки без тестирования.</summary>
+        private class ShipmentWithoutTestingRow
+        {
+            public int ActID { get; set; }
+            public string Reason { get; set; }
+            public DateTime ShipmentUtc { get; set; }
         }
 
         private void cmbActs_SelectedIndexChanged(object sender, EventArgs e)

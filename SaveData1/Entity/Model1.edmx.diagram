@@ -64,6 +64,9 @@
         <AssociationConnector Association="SaveDataModel.FK_ProductPhoto_TMA" />
         <AssociationConnector Association="SaveDataModel.FK_ProductPhoto_TMT" />
         <AssociationConnector Association="SaveDataModel.FK_ProductPhoto_User" />
+        <EntityTypeShape EntityType="SaveDataModel.ShipmentWithoutTesting" Width="1.5" PointX="10.25" PointY="17.75" />
+        <AssociationConnector Association="SaveDataModel.FK_ShipmentWithoutTesting_Act" />
+        <AssociationConnector Association="SaveDataModel.FK_ShipmentWithoutTesting_User" />
       </Diagram>
     </edmx:Diagrams>
   </edmx:Designer>

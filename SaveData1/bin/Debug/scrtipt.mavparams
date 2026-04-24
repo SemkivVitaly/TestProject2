@@ -1,0 +1,15 @@
+var cycle = 1
+while cycle < 5
+  if SERVO1_REVERSED == 0
+    set SERVO1_REVERSED 1
+  else
+    set SERVO1_REVERSED 0
+  endif
+  cycle++
+endwhile
+
+
+
+# Скрипт параметров MAVLink (.mavparams)
+# var NAME=value | NAME=expr | NAME++ | if/while VAR op value
+
